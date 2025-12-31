@@ -1,6 +1,7 @@
 package com.alvin.neuromind.data
 
 import android.app.Application
+import androidx.work.Configuration
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
@@ -9,35 +10,40 @@ import com.alvin.neuromind.domain.NotificationHelper
 import com.alvin.neuromind.domain.Scheduler
 import com.alvin.neuromind.domain.TaskCheckWorker
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
-class NeuromindApplication : Application() {
-    // Application scope for database operations
+class NeuromindApplication : Application(), Configuration.Provider {
     val applicationScope = CoroutineScope(SupervisorJob())
 
-    // Lazy initialization of Database and Repository
     val database by lazy { NeuromindDatabase.getDatabase(this, applicationScope) }
     val repository by lazy { TaskRepository(database.taskDao(), database.timetableDao(), database.feedbackLogDao()) }
-
     val scheduler by lazy { Scheduler() }
     val userPreferencesRepository by lazy { UserPreferencesRepository(this) }
 
     override fun onCreate() {
         super.onCreate()
 
-        // 1. Create Notification Channel
-        NotificationHelper(this).createNotificationChannel()
+        // Fix for Startup Lag: Run heavy initialization in background
+        applicationScope.launch(Dispatchers.IO) {
+            NotificationHelper(this@NeuromindApplication).createNotificationChannel()
 
-        // 2. Schedule Background Worker (Every 15 mins)
-        val workRequest = PeriodicWorkRequestBuilder<TaskCheckWorker>(
-            15, TimeUnit.MINUTES
-        ).build()
+            val workRequest = PeriodicWorkRequestBuilder<TaskCheckWorker>(
+                15, TimeUnit.MINUTES
+            ).build()
 
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            "TaskCheckWorker",
-            ExistingPeriodicWorkPolicy.KEEP,
-            workRequest
-        )
+            WorkManager.getInstance(this@NeuromindApplication).enqueueUniquePeriodicWork(
+                "TaskCheckWorker",
+                ExistingPeriodicWorkPolicy.KEEP,
+                workRequest
+            )
+        }
     }
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setMinimumLoggingLevel(android.util.Log.INFO)
+            .build()
 }

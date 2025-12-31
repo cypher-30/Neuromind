@@ -30,9 +30,16 @@ fun DashboardScreen(
     onNavigateToTasks: () -> Unit,
     onNavigateToTimetable: () -> Unit,
     onNavigateToFeedback: () -> Unit,
-    onTaskClick: (Task) -> Unit // ADDED: Callback for editing
+    // Removed onTaskClick from navigation parameters because we handle it locally now
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    // State for the Popup Dialog
+    var selectedTask by remember { mutableStateOf<Task?>(null) }
+
+    if (selectedTask != null) {
+        TaskDetailsDialog(task = selectedTask!!, onDismiss = { selectedTask = null })
+    }
 
     Scaffold(
         topBar = {
@@ -76,10 +83,12 @@ fun DashboardScreen(
                 } else {
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column {
-                            // LAG FIX: Use key to avoid unnecessary redraws
                             uiState.priorityTasks.forEach { task ->
                                 key(task.id) {
-                                    PriorityTaskRow(task = task, onClick = { onTaskClick(task) })
+                                    PriorityTaskRow(
+                                        task = task,
+                                        onClick = { selectedTask = task } // Show Popup
+                                    )
                                     HorizontalDivider(thickness = 0.5.dp)
                                 }
                             }
@@ -121,6 +130,34 @@ fun DashboardScreen(
     }
 }
 
+// --- THE POPUP DIALOG ---
+@Composable
+fun TaskDetailsDialog(task: Task, onDismiss: () -> Unit) {
+    val formatter = SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(task.title) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (!task.description.isNullOrBlank()) {
+                    Text(task.description, style = MaterialTheme.typography.bodyMedium)
+                } else {
+                    Text("No details provided.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                HorizontalDivider()
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AssistChip(onClick = {}, label = { Text(task.priority.name) }, leadingIcon = { Icon(Icons.AutoMirrored.Filled.LabelImportant, null, modifier = Modifier.size(16.dp)) })
+                    AssistChip(onClick = {}, label = { Text(task.difficulty.name) })
+                }
+                if (task.dueDate != null) {
+                    Text("Due: ${formatter.format(Date(task.dueDate))}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }
+    )
+}
+
 @Composable
 fun PriorityTaskRow(task: Task, onClick: () -> Unit) {
     Row(
@@ -144,7 +181,7 @@ fun PriorityTaskRow(task: Task, onClick: () -> Unit) {
     }
 }
 
-// ... (Keep SectionHeader, DashboardStatCard, EmptyStateCard, TimetableEventRow, AiPlanItem the same) ...
+// ... (Keep SectionHeader, DashboardStatCard, EmptyStateCard, TimetableEventRow, AiPlanItem the same as previous) ...
 @Composable
 fun SectionHeader(title: String) {
     Text(

@@ -12,7 +12,8 @@ import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.LocalTime
 
-@Database(entities = [Task::class, TimetableEntry::class, FeedbackLog::class], version = 2, exportSchema = false)
+// CHANGE IS HERE: version = 3
+@Database(entities = [Task::class, TimetableEntry::class, FeedbackLog::class], version = 4, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class NeuromindDatabase : RoomDatabase() {
 
@@ -42,9 +43,9 @@ abstract class NeuromindDatabase : RoomDatabase() {
                 venue = "Room 304",
                 details = "Topic: Jetpack Compose"
             )
-            timetableDao.insert(lecture) // Fixed: calls insert()
+            timetableDao.insert(lecture)
 
-            timetableDao.insert(TimetableEntry( // Fixed: calls insert()
+            timetableDao.insert(TimetableEntry(
                 title = "Gym",
                 dayOfWeek = DayOfWeek.WEDNESDAY,
                 startTime = LocalTime.of(18, 0),
@@ -68,7 +69,7 @@ abstract class NeuromindDatabase : RoomDatabase() {
                 dueDate = System.currentTimeMillis() - 86400000,
                 priority = Priority.MEDIUM,
                 durationMinutes = 45,
-                difficulty = Difficulty.EASY // FIXED: Added missing parameter
+                difficulty = Difficulty.EASY
             ))
         }
     }
@@ -84,7 +85,7 @@ abstract class NeuromindDatabase : RoomDatabase() {
                     NeuromindDatabase::class.java,
                     "neuromind_database"
                 )
-                    .fallbackToDestructiveMigration()
+                    .fallbackToDestructiveMigration() // This deletes old data if version mismatches
                     .addCallback(NeuromindDatabaseCallback(scope))
                     .build()
                 INSTANCE = instance

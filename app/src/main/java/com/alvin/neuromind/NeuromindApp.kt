@@ -64,6 +64,7 @@ fun NeuromindApp(
 
     NeuromindTheme(darkTheme = useDarkTheme) {
         val navController = rememberNavController()
+
         Scaffold(
             bottomBar = { BottomNavBar(navController = navController) }
         ) { innerPadding ->
@@ -75,27 +76,23 @@ fun NeuromindApp(
             ) {
                 NavHost(
                     navController = navController,
-                    startDestination = Screen.Dashboard.route
+                    startDestination = Screen.Dashboard.route // Must be "dashboard"
                 ) {
                     // 1. Dashboard
-                    composable(Screen.Dashboard.route) {
+                    composable(route = Screen.Dashboard.route) {
                         val factory = DashboardViewModelFactory(repository, scheduler)
                         val vm = viewModel<DashboardViewModel>(factory = factory)
                         DashboardScreen(
                             viewModel = vm,
                             onNavigateToTasks = { navController.navigate(Screen.TaskList.withArgs(true)) },
                             onNavigateToTimetable = { navController.navigate(Screen.Timetable.route) },
-                            onNavigateToFeedback = { navController.navigate(Screen.Feedback.route) },
-                            onTaskClick = { task ->
-                                // Navigate to Edit with ID
-                                navController.navigate(Screen.AddEditTask.route + "?taskId=${task.id}")
-                            }
+                            onNavigateToFeedback = { navController.navigate(Screen.Feedback.route) }
                         )
                     }
 
-                    // 2. Task List
+                    // 2. Task List (Handles arguments)
                     composable(
-                        route = Screen.TaskList.route,
+                        route = Screen.TaskList.route + "/{isRescheduleMode}",
                         arguments = listOf(navArgument("isRescheduleMode") { defaultValue = false })
                     ) { backStackEntry ->
                         val isRescheduleMode = backStackEntry.arguments?.getBoolean("isRescheduleMode") ?: false
@@ -107,7 +104,6 @@ fun NeuromindApp(
                             isRescheduleMode = isRescheduleMode,
                             onAddTaskClicked = { navController.navigate(Screen.AddEditTask.route) },
                             onEditTaskClicked = { task ->
-                                // FIXED: Navigate to Edit with ID
                                 navController.navigate(Screen.AddEditTask.route + "?taskId=${task.id}")
                             }
                         )
@@ -122,7 +118,6 @@ fun NeuromindApp(
                         val factory = AddEditTaskViewModelFactory(repository)
                         val vm = viewModel<AddEditTaskViewModel>(factory = factory)
 
-                        // Load data if editing an existing task
                         LaunchedEffect(taskId) {
                             if (taskId != -1) vm.loadTask(taskId)
                         }
@@ -156,7 +151,7 @@ fun NeuromindApp(
                         )
                     }
 
-                    // 7. Feedback (Daily Review)
+                    // 7. Feedback
                     composable(Screen.Feedback.route) {
                         val factory = FeedbackViewModelFactory(repository)
                         val vm = viewModel<com.alvin.neuromind.ui.feedback.FeedbackViewModel>(factory = factory)
@@ -184,17 +179,20 @@ private fun BottomNavBar(navController: NavController) {
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentDestination = navBackStackEntry?.destination
         navItems.forEach { item ->
+            val routeToCheck = if (item.screen == Screen.TaskList) Screen.TaskList.route + "/{isRescheduleMode}" else item.screen.route
+            val isSelected = currentDestination?.hierarchy?.any { it.route == routeToCheck } == true
+
             NavigationBarItem(
-                selected = currentDestination?.hierarchy?.any { it.route == item.screen.route } == true,
+                selected = isSelected,
                 onClick = {
-                    if (currentDestination?.route != item.screen.route) {
-                        navController.navigate(item.screen.route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
+                    val targetRoute = if (item.screen == Screen.TaskList) Screen.TaskList.withArgs(false) else item.screen.route
+
+                    navController.navigate(targetRoute) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
                         }
+                        launchSingleTop = true
+                        restoreState = true
                     }
                 },
                 icon = { Icon(item.icon, contentDescription = item.label) },
