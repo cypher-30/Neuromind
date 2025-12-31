@@ -1,13 +1,20 @@
 package com.alvin.neuromind.navigation
 
 sealed class Screen(val route: String) {
-    data object Dashboard : Screen("dashboard")
-    data object TaskList : Screen("taskList?isRescheduleMode={isRescheduleMode}") {
-        fun withArgs(isRescheduleMode: Boolean) = "taskList?isRescheduleMode=$isRescheduleMode"
+    object Dashboard : Screen("dashboard")
+    object TaskList : Screen("task_list")
+    object AddEditTask : Screen("add_edit_task")
+    object Timetable : Screen("timetable")
+    object Insights : Screen("insights")
+    object Settings : Screen("settings")
+    object Feedback : Screen("feedback")
+
+    fun withArgs(vararg args: Any): String {
+        return buildString {
+            append(route)
+            args.forEach { arg ->
+                append("/$arg")
+            }
+        }
     }
-    data object AddEditTask : Screen("addEditTask")
-    data object Timetable : Screen("timetable")
-    data object Feedback : Screen("feedback")
-    data object Insights : Screen("insights")
-    data object Settings : Screen("settings")
 }

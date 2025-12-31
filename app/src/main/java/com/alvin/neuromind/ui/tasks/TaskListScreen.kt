@@ -10,20 +10,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.alvin.neuromind.data.Task
 import com.alvin.neuromind.domain.ProposedSlot
 import java.time.format.DateTimeFormatter
-import java.util.*
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.graphics.Color
+import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,7 +27,6 @@ fun TaskListScreen(
     onAddTaskClicked: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val isFindingProposals by viewModel.isFindingProposals.collectAsState()
     val proposals by viewModel.proposals.collectAsState()
 
     LaunchedEffect(key1 = isRescheduleMode) {
@@ -53,7 +46,6 @@ fun TaskListScreen(
         topBar = {
             TopAppBar(
                 title = { Text(if (uiState.isRescheduleMode) "Reschedule Overdue" else "My Tasks") },
-                actions = { /* ... */ },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent
                 )
@@ -68,7 +60,6 @@ fun TaskListScreen(
                 Icon(Icons.Default.Add, contentDescription = "Add Task")
             }
         }
-
     ) { innerPadding ->
         Column(
             modifier = Modifier.fillMaxSize().padding(innerPadding)

@@ -3,7 +3,7 @@ package com.alvin.neuromind.ui.tasks
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -20,7 +20,6 @@ fun AddEditTaskScreen(
     viewModel: AddEditTaskViewModel,
     onNavigateUp: () -> Unit
 ) {
-    // Collect the StateFlow from the ViewModel
     val uiState by viewModel.uiState.collectAsState()
     var showDatePicker by remember { mutableStateOf(false) }
 
@@ -48,7 +47,7 @@ fun AddEditTaskScreen(
                 title = { Text("New Task") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateUp) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
@@ -57,7 +56,6 @@ fun AddEditTaskScreen(
                             viewModel.saveTask()
                             onNavigateUp()
                         },
-                        // The button is enabled only when the title is not empty
                         enabled = uiState.title.isNotBlank()
                     ) {
                         Icon(Icons.Default.Check, contentDescription = "Save Task")

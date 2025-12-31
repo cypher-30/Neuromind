@@ -3,77 +3,95 @@ package com.alvin.neuromind.ui.dashboard
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.CreationExtras
-import com.alvin.neuromind.data.Mood
 import com.alvin.neuromind.data.Priority
 import com.alvin.neuromind.data.Task
 import com.alvin.neuromind.data.TaskRepository
 import com.alvin.neuromind.data.TimetableEntry
 import com.alvin.neuromind.domain.Scheduler
 import com.alvin.neuromind.domain.TimeSlot
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
-import java.util.*
 
 data class DashboardUiState(
-    val greeting: String = "Welcome!",
+    val greeting: String = "",
     val currentDate: String = "",
     val pendingTaskCount: Int = 0,
     val completedTaskCount: Int = 0,
-    val upcomingEvents: List<TimetableEntry> = emptyList(),
     val priorityTasks: List<Task> = emptyList(),
+    val upcomingEvents: List<TimetableEntry> = emptyList(),
     val todaysPlan: Map<TimeSlot, Task> = emptyMap(),
-    val showBurnoutWarning: Boolean = false
+    val isLoading: Boolean = true
 )
 
-class DashboardViewModel(repository: TaskRepository, private val scheduler: Scheduler) : ViewModel() {
+class DashboardViewModel(
+    private val repository: TaskRepository,
+    private val scheduler: Scheduler
+) : ViewModel() {
+
+    // We use flowOn(Dispatchers.Default) to move calculations off the main thread
     val uiState: StateFlow<DashboardUiState> = combine(
         repository.allTasks,
-        repository.allTimetableEntries,
-        repository.allFeedbackLogs
-    ) { tasks, timetable, feedbackLogs ->
-        val pending = tasks.filter { !it.isCompleted }
-        val completed = tasks.filter { it.isCompleted }
-        val today = LocalDate.now().dayOfWeek
-        val now = LocalTime.now()
-        val overdue = pending.filter { it.isOverdue }
-        val highPriority = pending.filter { it.priority == Priority.HIGH && !it.isOverdue }
-        val priorityList = (overdue + highPriority).distinctBy { it.id }.take(3)
-        val upcoming = timetable.filter { it.dayOfWeek == today && it.endTime > now }.sortedBy { it.startTime }.take(2)
-        val recentFeedback = feedbackLogs.take(2)
-        val showWarning = if (recentFeedback.size < 2) false else recentFeedback.all { it.mood == Mood.STRESSED || it.mood == Mood.TIRED }
-        val freeSlots = scheduler.calculateFreeTimeSlots(today, timetable)
-        val plan = scheduler.scheduleTasks(pending, freeSlots)
+        repository.allTimetableEntries
+    ) { tasks, timetableEntries ->
+        // This block now runs in the background
+        val today = LocalDate.now()
+        val greeting = getGreeting()
+        val dateStr = today.format(DateTimeFormatter.ofPattern("EEEE, MMMM d"))
+
+        val pending = tasks.count { !it.isCompleted }
+        val completed = tasks.count { it.isCompleted }
+
+        // Priorities: Overdue or High Priority, not done
+        val priorities = tasks.filter { !it.isCompleted && (it.isOverdue || it.priority == Priority.HIGH) }
+            .sortedBy { it.dueDate }
+            .take(3)
+
+        // Events: Today, sorted by time
+        val todayEvents = timetableEntries
+            .filter { it.dayOfWeek == today.dayOfWeek }
+            .sortedBy { it.startTime }
+
+        // AI Scheduling (The Heavy Math)
+        val freeSlots = scheduler.calculateFreeTimeSlots(today.dayOfWeek, todayEvents)
+        val plan = scheduler.scheduleTasks(tasks, freeSlots)
+
         DashboardUiState(
-            greeting = getGreeting(),
-            currentDate = LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM d")),
-            pendingTaskCount = pending.size,
-            completedTaskCount = completed.size,
-            upcomingEvents = upcoming,
-            priorityTasks = priorityList,
+            greeting = greeting,
+            currentDate = dateStr,
+            pendingTaskCount = pending,
+            completedTaskCount = completed,
+            priorityTasks = priorities,
+            upcomingEvents = todayEvents.take(2),
             todaysPlan = plan,
-            showBurnoutWarning = showWarning
+            isLoading = false
         )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000L),
-        initialValue = DashboardUiState()
-    )
+    }
+        .flowOn(Dispatchers.Default) // <--- CRITICAL FIX: Moves calculation to background
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = DashboardUiState(isLoading = true)
+        )
+
     private fun getGreeting(): String {
-        return when (Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
-            in 0..11 -> "Good Morning"
-            in 12..16 -> "Good Afternoon"
+        val hour = LocalTime.now().hour
+        return when (hour) {
+            in 5..11 -> "Good Morning"
+            in 12..17 -> "Good Afternoon"
             else -> "Good Evening"
         }
     }
 }
-class DashboardViewModelFactory(private val repository: TaskRepository, private val scheduler: Scheduler) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
+
+class DashboardViewModelFactory(
+    private val repository: TaskRepository,
+    private val scheduler: Scheduler
+) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(DashboardViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
             return DashboardViewModel(repository, scheduler) as T

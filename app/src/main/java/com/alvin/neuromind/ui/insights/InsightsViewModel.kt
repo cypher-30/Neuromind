@@ -3,8 +3,7 @@ package com.alvin.neuromind.ui.insights
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.alvin.neuromind.data.FeedbackLog
-import com.alvin.neuromind.data.Mood
+import androidx.lifecycle.viewmodel.CreationExtras
 import com.alvin.neuromind.data.TaskRepository
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -15,51 +14,69 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.TextStyle
 import java.util.Locale
-import androidx.lifecycle.viewmodel.CreationExtras
 
 data class InsightsUiState(
-    val weeklyCompletionData: List<Float> = List(7) { 0f },
-    val weekDayLabels: List<String> = emptyList(),
+    val completionData: List<Pair<String, Int>> = emptyList(),
+    val averageMood: String = "N/A",
+    val averageEnergy: Int = 0,
     val wellnessScore: Float = 0.0f,
     val isLoading: Boolean = true
 )
 
-class InsightsViewModel(private val repository: com.alvin.neuromind.data.TaskRepository) : ViewModel() {
+class InsightsViewModel(private val repository: TaskRepository) : ViewModel() {
 
     val uiState: StateFlow<InsightsUiState> = combine(
         repository.allTasks,
         repository.allFeedbackLogs
     ) { tasks, feedbackLogs ->
 
-        // --- Weekly Completion Logic ---
+        // 1. Weekly Completion Logic
         val today = LocalDate.now()
-        val startOfWeek = today.minusDays(today.dayOfWeek.value.toLong() - 1) // Assuming week starts on Monday
-        val weekDays = (0..6).map { startOfWeek.plusDays(it.toLong()) }
+        // Get last 7 days including today
+        val weekDays = (0..6).map { today.minusDays((6 - it).toLong()) }
 
         val completionsByDay = weekDays.map { day ->
-            tasks.count { task ->
+            val dayLabel = day.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+            val count = tasks.count { task ->
                 val completedDate = Instant.ofEpochMilli(task.updatedAt)
                     .atZone(ZoneId.systemDefault())
                     .toLocalDate()
                 task.isCompleted && completedDate == day
-            }.toFloat()
+            }
+            dayLabel to count
         }
 
-        val dayLabels = weekDays.map { it.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault()) }
+        // 2. Averages & Wellness Score
+        val recentFeedback = feedbackLogs.take(14) // Last 2 weeks
+        val wellnessScore: Float
+        val avgMoodStr: String
+        val avgEnergy: Int
 
-        // --- Wellness Score Logic ---
-        val recentFeedback = feedbackLogs.take(7) // Average of last 7 days
-        val wellnessScore = if (recentFeedback.isEmpty()) {
-            0f // Default if no feedback
+        if (recentFeedback.isEmpty()) {
+            wellnessScore = 0f
+            avgMoodStr = "No Data"
+            avgEnergy = 0
         } else {
+            // Wellness (0.0 - 1.0)
             val totalScore = recentFeedback.sumOf { it.mood.score + it.energyLevel }
-            val maxPossibleScore = recentFeedback.size * (Mood.GREAT.score + 10) // 10 is max energy
-            (totalScore.toFloat() / maxPossibleScore.toFloat()).coerceIn(0f, 1f)
+            // Max score per entry is 5 (Mood) + 10 (Energy) = 15
+            val maxPossibleScore = recentFeedback.size * 15
+            wellnessScore = (totalScore.toFloat() / maxPossibleScore.toFloat()).coerceIn(0f, 1f)
+
+            // Avg Energy
+            avgEnergy = (recentFeedback.sumOf { it.energyLevel } / recentFeedback.size)
+
+            // Avg Mood
+            val avgMoodScore = recentFeedback.sumOf { it.mood.score } / recentFeedback.size
+            avgMoodStr = com.alvin.neuromind.data.Mood.entries
+                .minByOrNull { kotlin.math.abs(it.score - avgMoodScore) }
+                ?.name?.lowercase()?.replaceFirstChar { it.uppercase() } ?: "Neutral"
         }
 
         InsightsUiState(
-            weeklyCompletionData = completionsByDay,
-            weekDayLabels = dayLabels,
+            completionData = completionsByDay,
+            averageMood = avgMoodStr,
+            averageEnergy = avgEnergy,
             wellnessScore = wellnessScore,
             isLoading = false
         )
@@ -71,9 +88,8 @@ class InsightsViewModel(private val repository: com.alvin.neuromind.data.TaskRep
 }
 
 class InsightsViewModelFactory(
-    private val repository: com.alvin.neuromind.data.TaskRepository
+    private val repository: TaskRepository
 ) : ViewModelProvider.Factory {
-    // --- FIX: Updated the create function signature ---
     override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
         if (modelClass.isAssignableFrom(InsightsViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")

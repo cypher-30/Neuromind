@@ -13,7 +13,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-// This is now a data class for stable state updates
 data class AddEditTaskUiState(
     val title: String = "",
     val description: String = "",

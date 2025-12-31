@@ -1,8 +1,9 @@
 package com.alvin.neuromind.ui.feedback
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,94 +15,79 @@ import com.alvin.neuromind.data.Mood
 @Composable
 fun FeedbackScreen(
     viewModel: FeedbackViewModel,
-    // A function to call when feedback is submitted, to navigate back.
     onFeedbackSubmitted: () -> Unit
 ) {
-    var selectedMood by remember { mutableStateOf(Mood.NEUTRAL) }
-    var energyLevel by remember { mutableStateOf(3f) } // Use a float for the slider
+    var selectedMood by remember { mutableStateOf<Mood?>(null) }
+    var energyLevel by remember { mutableFloatStateOf(5f) }
     var comment by remember { mutableStateOf("") }
 
-    // This would eventually come from the ViewModel, but is hardcoded for now.
-    val tasksCompletedToday = 5
+    // Check if the callback is effectively "go back" (from settings) or "finish" (from dashboard)
+    // For UI purposes, we assume we always want a back button if we are in a full screen flow.
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp)
-    ) {
-        Text("End-of-Day Review", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(bottom = 24.dp))
-
-        // Mood Selection
-        Text("How did you feel today?", style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(8.dp))
-        SegmentedButtonRow(
-            options = Mood.values().toList(),
-            selectedOption = selectedMood,
-            onOptionSelect = { selectedMood = it }
-        )
-        Spacer(Modifier.height(24.dp))
-
-        // Energy Level Slider
-        Text("What was your energy level?", style = MaterialTheme.typography.titleMedium)
-        Slider(
-            value = energyLevel,
-            onValueChange = { energyLevel = it },
-            valueRange = 1f..5f,
-            steps = 3 // This creates 5 discrete steps (1, 2, 3, 4, 5)
-        )
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("Low", style = MaterialTheme.typography.bodySmall)
-            Text("High", style = MaterialTheme.typography.bodySmall)
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Daily Review") },
+                navigationIcon = {
+                    IconButton(onClick = onFeedbackSubmitted) { // Acts as Back
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
         }
-        Spacer(Modifier.height(24.dp))
-
-        // Comments Section
-        Text("Any additional comments?", style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(8.dp))
-        OutlinedTextField(
-            value = comment,
-            onValueChange = { comment = it },
-            label = { Text("Optional comments...") },
-            modifier = Modifier.fillMaxWidth().height(120.dp)
-        )
-        Spacer(Modifier.height(32.dp))
-
-        // Submit Button
-        Button(
-            onClick = {
-                viewModel.submitFeedback(
-                    mood = selectedMood,
-                    energyLevel = energyLevel.toInt(),
-                    tasksCompleted = tasksCompletedToday,
-                    comment = comment.takeIf { it.isNotBlank() }
-                )
-                // Navigate back after submitting
-                onFeedbackSubmitted()
-            },
-            modifier = Modifier.fillMaxWidth().height(48.dp)
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(innerPadding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            Text("Submit Review")
-        }
-    }
-}
+            item {
+                Text("How are you feeling?", style = MaterialTheme.typography.titleLarge)
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Mood.entries.forEach { mood ->
+                        FilterChip(
+                            selected = selectedMood == mood,
+                            onClick = { selectedMood = mood },
+                            label = { Text(mood.name.take(1) + mood.name.drop(1).lowercase()) }
+                        )
+                    }
+                }
+            }
 
-// A generic Composable for our segmented buttons, reused from TaskListScreen
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun <T> SegmentedButtonRow(
-    options: List<T>,
-    selectedOption: T,
-    onOptionSelect: (T) -> Unit
-) where T : Enum<T> {
-    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-        options.forEachIndexed { index, option ->
-            SegmentedButton(
-                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
-                onClick = { onOptionSelect(option) },
-                selected = (option == selectedOption)
-            ) {
-                Text(option.name.lowercase().replaceFirstChar { it.titlecase() })
+            item {
+                Text("Energy Level: ${energyLevel.toInt()}/10", style = MaterialTheme.typography.titleMedium)
+                Slider(
+                    value = energyLevel,
+                    onValueChange = { energyLevel = it },
+                    valueRange = 1f..10f,
+                    steps = 8
+                )
+            }
+
+            item {
+                OutlinedTextField(
+                    value = comment,
+                    onValueChange = { comment = it },
+                    label = { Text("Notes on your day") },
+                    modifier = Modifier.fillMaxWidth().height(120.dp)
+                )
+            }
+
+            item {
+                Button(
+                    onClick = {
+                        if (selectedMood != null) {
+                            // FIXED: Added '0' as the third argument for tasksCompleted
+                            viewModel.submitFeedback(selectedMood!!, energyLevel.toInt(), 0, comment)
+                            onFeedbackSubmitted()
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = selectedMood != null
+                ) {
+                    Text("Save Review")
+                }
             }
         }
     }

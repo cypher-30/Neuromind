@@ -53,12 +53,6 @@ class TimetableViewModel(private val repository: TaskRepository) : ViewModel() {
             repository.insert(newEntry)
         }
     }
-
-    fun deleteEntry(entry: TimetableEntry) {
-        viewModelScope.launch {
-            repository.delete(entry)
-        }
-    }
 }
 
 class TimetableViewModelFactory(

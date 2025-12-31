@@ -15,8 +15,6 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.alvin.neuromind.data.TimetableEntry
@@ -124,7 +122,6 @@ private fun DayColumn(day: DayOfWeek, entriesForDay: List<TimetableEntry>, hourH
     val dayToday = LocalDate.now().dayOfWeek
     val dpPerMinute = hourHeight.value / 60
     Column(modifier = Modifier.width(DAY_WIDTH).fillMaxHeight()) {
-        // --- Day Header Box ---
         Box(
             modifier = Modifier.height(48.dp).fillMaxWidth(),
             contentAlignment = Alignment.Center
@@ -132,7 +129,6 @@ private fun DayColumn(day: DayOfWeek, entriesForDay: List<TimetableEntry>, hourH
             Text(text = day.getDisplayName(TextStyle.SHORT, Locale.getDefault()), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         }
 
-        // --- Canvas Box for events and lines ---
         Box(
             modifier = Modifier.weight(1f).fillMaxWidth().drawBehind {
                 (DAY_START_HOUR..DAY_END_HOUR).forEach { hour ->

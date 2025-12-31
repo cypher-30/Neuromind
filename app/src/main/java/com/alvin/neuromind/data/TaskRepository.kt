@@ -19,4 +19,6 @@ class TaskRepository(
 
     val allFeedbackLogs: Flow<List<FeedbackLog>> = feedbackLogDao.getAllLogs()
     suspend fun insert(log: FeedbackLog) = feedbackLogDao.insertLog(log)
+
+    suspend fun getTaskById(id: java.util.UUID): Task? = taskDao.getTaskById(id)
 }
