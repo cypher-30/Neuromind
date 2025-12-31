@@ -15,7 +15,6 @@ import com.alvin.neuromind.data.Difficulty
 import com.alvin.neuromind.data.Priority
 import java.text.SimpleDateFormat
 import java.time.Instant
-import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import java.util.*
@@ -36,7 +35,7 @@ fun AddEditTaskScreen(
     val dateFormat = remember { SimpleDateFormat("EEE, MMM d, yyyy", Locale.getDefault()) }
     val timeFormat = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
 
-    // Logic to handle saving Date + Time
+    // --- DATE PICKER LOGIC ---
     if (showDatePicker) {
         val datePickerState = rememberDatePickerState(
             initialSelectedDateMillis = uiState.dueDate ?: System.currentTimeMillis()
@@ -45,7 +44,7 @@ fun AddEditTaskScreen(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 Button(onClick = {
-                    // Update ONLY the date part, keep the time part if it existed, else default to 9 AM
+                    // Update ONLY the date part, keep the time part if it existed
                     val selectedDate = datePickerState.selectedDateMillis ?: System.currentTimeMillis()
                     val currentDue = uiState.dueDate
 
@@ -62,7 +61,7 @@ fun AddEditTaskScreen(
 
                     viewModel.onDueDateChange(newDateTime)
                     showDatePicker = false
-                    // Optionally open time picker right after
+                    // Automatically open time picker for convenience
                     showTimePicker = true
                 }) { Text("Next: Set Time") }
             },
@@ -70,6 +69,7 @@ fun AddEditTaskScreen(
         ) { DatePicker(state = datePickerState) }
     }
 
+    // --- TIME PICKER LOGIC ---
     if (showTimePicker) {
         val initialTime = uiState.dueDate?.let {
             Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalTime()
@@ -152,7 +152,7 @@ fun AddEditTaskScreen(
                 )
             }
 
-            // DATE & TIME BUTTONS
+            // DATE & TIME BUTTONS ROW
             item {
                 Text("Due Date & Time", style = MaterialTheme.typography.labelLarge)
                 Spacer(modifier = Modifier.height(8.dp))

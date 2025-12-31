@@ -11,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.alvin.neuromind.data.preferences.ThemeSetting
 
@@ -23,8 +24,8 @@ fun SettingsScreen(
 ) {
     val currentTheme by viewModel.themeSetting.collectAsState()
     var showThemeDialog by remember { mutableStateOf(false) }
-    var showDemoDataConfirmation by remember { mutableStateOf(false) }
-    val snackbarHostState = remember { SnackbarHostState() }
+    var showResetConfirmation by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     if (showThemeDialog) {
         AlertDialog(
@@ -60,26 +61,27 @@ fun SettingsScreen(
         )
     }
 
-    // Demo Data Confirmation Dialog
-    if (showDemoDataConfirmation) {
+    if (showResetConfirmation) {
         AlertDialog(
-            onDismissRequest = { showDemoDataConfirmation = false },
-            icon = { Icon(Icons.Default.CloudDownload, contentDescription = null) },
-            title = { Text("Load Demo Data?") },
-            text = { Text("This will add sample tasks and timetable entries to your app so you can test the features. It won't delete your existing data.") },
+            onDismissRequest = { showResetConfirmation = false },
+            icon = { Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+            title = { Text("Reset All Data?") },
+            text = { Text("This will delete all tasks and timetable entries. This action cannot be undone.") },
             confirmButton = {
-                Button(onClick = {
-                    viewModel.generateDemoData()
-                    showDemoDataConfirmation = false
-                }) { Text("Load Data") }
+                Button(
+                    onClick = {
+                        viewModel.resetAppData()
+                        showResetConfirmation = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Reset") }
             },
-            dismissButton = { TextButton(onClick = { showDemoDataConfirmation = false }) { Text("Cancel") } }
+            dismissButton = { TextButton(onClick = { showResetConfirmation = false }) { Text("Cancel") } }
         )
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Settings") }) },
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+        topBar = { TopAppBar(title = { Text("Settings") }) }
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
@@ -101,10 +103,34 @@ fun SettingsScreen(
             item { SettingsSectionHeader("Data & Testing") }
             item {
                 SettingsItem(
-                    icon = Icons.Default.Science,
-                    title = "Load Demo Data",
-                    subtitle = "Populate app with sample schedule",
-                    onClick = { showDemoDataConfirmation = true }
+                    icon = Icons.Default.AddCircleOutline,
+                    title = "Add Random Task",
+                    subtitle = "Generates a unique task for testing",
+                    onClick = { viewModel.generateDemoData() }
+                )
+            }
+            item {
+                SettingsItem(
+                    icon = Icons.Default.CalendarViewWeek,
+                    title = "Add Base Timetable",
+                    subtitle = "Loads standard weekly classes",
+                    onClick = { viewModel.generateBaseTimetable() }
+                )
+            }
+            item {
+                SettingsItem(
+                    icon = Icons.Default.NotificationsActive,
+                    title = "Test Notifications",
+                    subtitle = "Trigger a notification immediately",
+                    onClick = { viewModel.testNotification(context) }
+                )
+            }
+            item {
+                SettingsItem(
+                    icon = Icons.Default.DeleteForever,
+                    title = "Reset All Data",
+                    subtitle = "Clear everything",
+                    onClick = { showResetConfirmation = true }
                 )
             }
 
@@ -133,7 +159,7 @@ fun SettingsScreen(
                 SettingsItem(
                     icon = Icons.Default.Info,
                     title = "Version",
-                    subtitle = "Neuromind v3.2 (Beta)",
+                    subtitle = "Neuromind v3.5",
                     onClick = { }
                 )
             }

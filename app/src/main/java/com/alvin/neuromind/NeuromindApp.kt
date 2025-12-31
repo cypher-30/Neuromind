@@ -50,7 +50,6 @@ fun NeuromindApp(
     scheduler: Scheduler,
     userPreferencesRepository: UserPreferencesRepository
 ) {
-    // We create the SettingsViewModel here to observe the theme at the top level
     val settingsFactory = SettingsViewModelFactory(userPreferencesRepository, repository)
     val settingsViewModel: SettingsViewModel = viewModel(factory = settingsFactory)
 
@@ -88,7 +87,7 @@ fun NeuromindApp(
                         )
                     }
 
-                    // 2. Task List (Handles Normal + Reschedule Mode)
+                    // 2. Task List
                     composable(
                         route = Screen.TaskList.route,
                         arguments = listOf(navArgument("isRescheduleMode") { defaultValue = false })
@@ -116,7 +115,7 @@ fun NeuromindApp(
                         val vm = viewModel<com.alvin.neuromind.ui.timetable.TimetableViewModel>(factory = factory)
                         TimetableScreen(
                             viewModel = vm,
-                            onNavigateBack = { navController.popBackStack() } // Added Back Navigation
+                            onNavigateBack = { navController.popBackStack() }
                         )
                     }
 
@@ -129,7 +128,6 @@ fun NeuromindApp(
 
                     // 6. Settings
                     composable(Screen.Settings.route) {
-                        // We reuse the existing settingsViewModel created at the top level
                         SettingsScreen(
                             viewModel = settingsViewModel,
                             onNavigateToTimetable = { navController.navigate(Screen.Timetable.route) },
@@ -143,7 +141,8 @@ fun NeuromindApp(
                         val vm = viewModel<com.alvin.neuromind.ui.feedback.FeedbackViewModel>(factory = factory)
                         FeedbackScreen(
                             viewModel = vm,
-                            onNavigateBack = { navController.popBackStack() } // Added Back Navigation
+                            onFeedbackSubmitted = { navController.popBackStack() },
+                            onNavigateBack = { navController.popBackStack() }
                         )
                     }
                 }
@@ -167,10 +166,15 @@ private fun BottomNavBar(navController: NavController) {
             NavigationBarItem(
                 selected = currentDestination?.hierarchy?.any { it.route == item.screen.route } == true,
                 onClick = {
-                    navController.navigate(item.screen.route) {
-                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
+                    // STABILIZATION FIX: Check destination before navigating
+                    if (currentDestination?.route != item.screen.route) {
+                        navController.navigate(item.screen.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     }
                 },
                 icon = { Icon(item.icon, contentDescription = item.label) },

@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.alvin.neuromind"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.alvin.neuromind"
@@ -66,8 +66,9 @@ dependencies {
     // ViewModel
     implementation(libs.androidx.lifecycle.viewmodel.compose)
 
+    // WorkManager (This was missing!)
+    implementation(libs.androidx.work.runtime.ktx)
+
     // Vico Chart
     implementation(libs.vico.compose.m3)
-
-    implementation(libs.androidx.work.runtime.ktx)
 }
