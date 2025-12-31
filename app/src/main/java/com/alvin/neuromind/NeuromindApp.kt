@@ -50,7 +50,10 @@ fun NeuromindApp(
     scheduler: Scheduler,
     userPreferencesRepository: UserPreferencesRepository
 ) {
-    val settingsViewModel: SettingsViewModel = viewModel(factory = SettingsViewModelFactory(userPreferencesRepository))
+    // We create the SettingsViewModel here to observe the theme at the top level
+    val settingsFactory = SettingsViewModelFactory(userPreferencesRepository, repository)
+    val settingsViewModel: SettingsViewModel = viewModel(factory = settingsFactory)
+
     val themeSetting by settingsViewModel.themeSetting.collectAsState()
     val useDarkTheme = when (themeSetting) {
         ThemeSetting.LIGHT -> false
@@ -73,6 +76,7 @@ fun NeuromindApp(
                     navController = navController,
                     startDestination = Screen.Dashboard.route
                 ) {
+                    // 1. Dashboard
                     composable(Screen.Dashboard.route) {
                         val factory = DashboardViewModelFactory(repository, scheduler)
                         val vm = viewModel<com.alvin.neuromind.ui.dashboard.DashboardViewModel>(factory = factory)
@@ -83,6 +87,8 @@ fun NeuromindApp(
                             onNavigateToFeedback = { navController.navigate(Screen.Feedback.route) }
                         )
                     }
+
+                    // 2. Task List (Handles Normal + Reschedule Mode)
                     composable(
                         route = Screen.TaskList.route,
                         arguments = listOf(navArgument("isRescheduleMode") { defaultValue = false })
@@ -96,32 +102,49 @@ fun NeuromindApp(
                             onAddTaskClicked = { navController.navigate(Screen.AddEditTask.route) }
                         )
                     }
+
+                    // 3. Add/Edit Task
                     composable(Screen.AddEditTask.route) {
                         val factory = AddEditTaskViewModelFactory(repository)
                         val vm = viewModel<AddEditTaskViewModel>(factory = factory)
                         AddEditTaskScreen(viewModel = vm, onNavigateUp = { navController.navigateUp() })
                     }
+
+                    // 4. Timetable
                     composable(Screen.Timetable.route) {
                         val factory = TimetableViewModelFactory(repository)
                         val vm = viewModel<com.alvin.neuromind.ui.timetable.TimetableViewModel>(factory = factory)
-                        TimetableScreen(viewModel = vm)
+                        TimetableScreen(
+                            viewModel = vm,
+                            onNavigateBack = { navController.popBackStack() } // Added Back Navigation
+                        )
                     }
+
+                    // 5. Insights
                     composable(Screen.Insights.route) {
                         val factory = InsightsViewModelFactory(repository)
                         val vm = viewModel<com.alvin.neuromind.ui.insights.InsightsViewModel>(factory = factory)
                         InsightsScreen(viewModel = vm)
                     }
+
+                    // 6. Settings
                     composable(Screen.Settings.route) {
+                        // We reuse the existing settingsViewModel created at the top level
                         SettingsScreen(
                             viewModel = settingsViewModel,
                             onNavigateToTimetable = { navController.navigate(Screen.Timetable.route) },
                             onNavigateToFeedback = { navController.navigate(Screen.Feedback.route) }
                         )
                     }
+
+                    // 7. Feedback (Daily Review)
                     composable(Screen.Feedback.route) {
                         val factory = FeedbackViewModelFactory(repository)
                         val vm = viewModel<com.alvin.neuromind.ui.feedback.FeedbackViewModel>(factory = factory)
-                        FeedbackScreen(viewModel = vm, onFeedbackSubmitted = { navController.popBackStack() })
+                        FeedbackScreen(
+                            viewModel = vm,
+                            onNavigateBack = { navController.popBackStack() } // Added Back Navigation
+                        )
                     }
                 }
             }

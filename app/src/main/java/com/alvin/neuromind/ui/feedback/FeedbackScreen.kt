@@ -15,21 +15,18 @@ import com.alvin.neuromind.data.Mood
 @Composable
 fun FeedbackScreen(
     viewModel: FeedbackViewModel,
-    onFeedbackSubmitted: () -> Unit
+    onNavigateBack: () -> Unit // *** NEW BACK BUTTON PARAMETER ***
 ) {
     var selectedMood by remember { mutableStateOf<Mood?>(null) }
     var energyLevel by remember { mutableFloatStateOf(5f) }
     var comment by remember { mutableStateOf("") }
 
-    // Check if the callback is effectively "go back" (from settings) or "finish" (from dashboard)
-    // For UI purposes, we assume we always want a back button if we are in a full screen flow.
-
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Daily Review") },
+                title = { Text("End-of-Day Review") },
                 navigationIcon = {
-                    IconButton(onClick = onFeedbackSubmitted) { // Acts as Back
+                    IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
@@ -41,49 +38,75 @@ fun FeedbackScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
+            // MOOD SECTION
             item {
-                Text("How are you feeling?", style = MaterialTheme.typography.titleLarge)
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Mood.entries.forEach { mood ->
-                        FilterChip(
-                            selected = selectedMood == mood,
-                            onClick = { selectedMood = mood },
-                            label = { Text(mood.name.take(1) + mood.name.drop(1).lowercase()) }
-                        )
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("How was your day?", style = MaterialTheme.typography.titleMedium)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                            Mood.entries.forEach { mood ->
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    val isSelected = selectedMood == mood
+                                    InputChip(
+                                        selected = isSelected,
+                                        onClick = { selectedMood = mood },
+                                        label = { Text(mood.name.lowercase().replaceFirstChar { it.uppercase() }) },
+                                        colors = InputChipDefaults.inputChipColors(
+                                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer
+                                        )
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
 
+            // ENERGY SECTION
             item {
-                Text("Energy Level: ${energyLevel.toInt()}/10", style = MaterialTheme.typography.titleMedium)
-                Slider(
-                    value = energyLevel,
-                    onValueChange = { energyLevel = it },
-                    valueRange = 1f..10f,
-                    steps = 8
-                )
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Energy Level", style = MaterialTheme.typography.titleMedium)
+                            Text("${energyLevel.toInt()}/10", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                        }
+                        Slider(
+                            value = energyLevel,
+                            onValueChange = { energyLevel = it },
+                            valueRange = 1f..10f,
+                            steps = 8
+                        )
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Exhausted", style = MaterialTheme.typography.labelSmall)
+                            Text("Energetic", style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                }
             }
 
+            // NOTES SECTION
             item {
                 OutlinedTextField(
                     value = comment,
                     onValueChange = { comment = it },
-                    label = { Text("Notes on your day") },
-                    modifier = Modifier.fillMaxWidth().height(120.dp)
+                    label = { Text("Daily Reflection") },
+                    placeholder = { Text("What went well? What didn't?") },
+                    modifier = Modifier.fillMaxWidth().height(150.dp),
+                    shape = MaterialTheme.shapes.medium
                 )
             }
 
+            // SAVE BUTTON
             item {
                 Button(
                     onClick = {
                         if (selectedMood != null) {
-                            // FIXED: Added '0' as the third argument for tasksCompleted
                             viewModel.submitFeedback(selectedMood!!, energyLevel.toInt(), 0, comment)
-                            onFeedbackSubmitted()
+                            onNavigateBack()
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
                     enabled = selectedMood != null
                 ) {
                     Text("Save Review")

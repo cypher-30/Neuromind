@@ -68,4 +68,6 @@ dependencies {
 
     // Vico Chart
     implementation(libs.vico.compose.m3)
+
+    implementation(libs.androidx.work.runtime.ktx)
 }

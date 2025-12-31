@@ -1,5 +1,6 @@
 package com.alvin.neuromind.ui.dashboard
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -8,21 +9,19 @@ import androidx.compose.material.icons.automirrored.filled.LabelImportant
 import androidx.compose.material.icons.automirrored.filled.ListAlt
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.alvin.neuromind.data.Priority
 import com.alvin.neuromind.data.Task
 import com.alvin.neuromind.data.TimetableEntry
 import com.alvin.neuromind.domain.TimeSlot
+import java.text.SimpleDateFormat
 import java.time.format.DateTimeFormatter
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,6 +32,14 @@ fun DashboardScreen(
     onNavigateToFeedback: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    // State to control the popup dialog
+    var selectedTask by remember { mutableStateOf<Task?>(null) }
+
+    // Show dialog if a task is selected
+    if (selectedTask != null) {
+        TaskDetailsDialog(task = selectedTask!!, onDismiss = { selectedTask = null })
+    }
 
     Scaffold(
         topBar = {
@@ -77,7 +84,7 @@ fun DashboardScreen(
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column {
                             uiState.priorityTasks.forEach { task ->
-                                PriorityTaskRow(task)
+                                PriorityTaskRow(task = task, onClick = { selectedTask = task })
                                 HorizontalDivider(thickness = 0.5.dp)
                             }
                         }
@@ -109,15 +116,62 @@ fun DashboardScreen(
             if (uiState.todaysPlan.isNotEmpty()) {
                 item {
                     SectionHeader("AI Suggested Plan")
-                    Text(
-                        "Based on your free time slots today:",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.secondary
-                    )
                 }
                 items(uiState.todaysPlan.entries.toList().sortedBy { it.key.start }) { (slot, task) ->
                     AiPlanItem(slot, task)
                 }
+            }
+        }
+    }
+}
+
+// --- COMPONENTS ---
+
+@Composable
+fun TaskDetailsDialog(task: Task, onDismiss: () -> Unit) {
+    val formatter = SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(task.title) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (!task.description.isNullOrBlank()) {
+                    Text(task.description, style = MaterialTheme.typography.bodyMedium)
+                } else {
+                    Text("No details provided.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                HorizontalDivider()
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AssistChip(onClick = {}, label = { Text(task.priority.name) }, leadingIcon = { Icon(Icons.AutoMirrored.Filled.LabelImportant, null, modifier = Modifier.size(16.dp)) })
+                    AssistChip(onClick = {}, label = { Text(task.difficulty.name) })
+                }
+                if (task.dueDate != null) {
+                    Text("Due: ${formatter.format(Date(task.dueDate))}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }
+    )
+}
+
+@Composable
+fun PriorityTaskRow(task: Task, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        val icon = if (task.isOverdue) Icons.Default.Warning else Icons.AutoMirrored.Filled.LabelImportant
+        val color = if (task.isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+        Icon(icon, contentDescription = null, tint = color)
+        Spacer(modifier = Modifier.width(12.dp))
+        Column {
+            Text(task.title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+            if (task.dueDate != null) {
+                val format = SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
+                Text(format.format(Date(task.dueDate)), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -152,25 +206,6 @@ fun EmptyStateCard(message: String) {
         modifier = Modifier.fillMaxWidth()
     ) {
         Text(message, modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium)
-    }
-}
-
-@Composable
-fun PriorityTaskRow(task: Task) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        val icon = if (task.isOverdue) Icons.Default.Warning else Icons.AutoMirrored.Filled.LabelImportant
-        val color = if (task.isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-        Icon(icon, contentDescription = null, tint = color)
-        Spacer(modifier = Modifier.width(12.dp))
-        Column {
-            Text(task.title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-            if (task.isOverdue) {
-                Text("Overdue", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
-            }
-        }
     }
 }
 
