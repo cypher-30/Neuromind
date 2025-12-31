@@ -1,5 +1,6 @@
 package com.alvin.neuromind.ui.settings
 
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -25,6 +26,10 @@ fun SettingsScreen(
     val currentTheme by viewModel.themeSetting.collectAsState()
     var showThemeDialog by remember { mutableStateOf(false) }
     var showResetConfirmation by remember { mutableStateOf(false) }
+
+    // Developer Mode State
+    var devModeClicks by remember { mutableIntStateOf(0) }
+    var isDevModeEnabled by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     if (showThemeDialog) {
@@ -65,13 +70,14 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { showResetConfirmation = false },
             icon = { Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-            title = { Text("Reset All Data?") },
-            text = { Text("This will delete all tasks and timetable entries. This action cannot be undone.") },
+            title = { Text("Reset Task & Schedule Data?") },
+            text = { Text("This will delete all your tasks and timetable entries. Your settings (like Theme) will be saved.") },
             confirmButton = {
                 Button(
                     onClick = {
                         viewModel.resetAppData()
                         showResetConfirmation = false
+                        Toast.makeText(context, "Data cleared", Toast.LENGTH_SHORT).show()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) { Text("Reset") }
@@ -84,9 +90,7 @@ fun SettingsScreen(
         topBar = { TopAppBar(title = { Text("Settings") }) }
     ) { innerPadding ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
+            modifier = Modifier.fillMaxSize().padding(innerPadding)
         ) {
             // Section: Appearance
             item { SettingsSectionHeader("Appearance") }
@@ -96,41 +100,6 @@ fun SettingsScreen(
                     title = "App Theme",
                     subtitle = currentTheme.name.lowercase().replaceFirstChar { it.uppercase() },
                     onClick = { showThemeDialog = true }
-                )
-            }
-
-            // Section: Data & Testing
-            item { SettingsSectionHeader("Data & Testing") }
-            item {
-                SettingsItem(
-                    icon = Icons.Default.AddCircleOutline,
-                    title = "Add Random Task",
-                    subtitle = "Generates a unique task for testing",
-                    onClick = { viewModel.generateDemoData() }
-                )
-            }
-            item {
-                SettingsItem(
-                    icon = Icons.Default.CalendarViewWeek,
-                    title = "Add Base Timetable",
-                    subtitle = "Loads standard weekly classes",
-                    onClick = { viewModel.generateBaseTimetable() }
-                )
-            }
-            item {
-                SettingsItem(
-                    icon = Icons.Default.NotificationsActive,
-                    title = "Test Notifications",
-                    subtitle = "Trigger a notification immediately",
-                    onClick = { viewModel.testNotification(context) }
-                )
-            }
-            item {
-                SettingsItem(
-                    icon = Icons.Default.DeleteForever,
-                    title = "Reset All Data",
-                    subtitle = "Clear everything",
-                    onClick = { showResetConfirmation = true }
                 )
             }
 
@@ -153,15 +122,66 @@ fun SettingsScreen(
                 )
             }
 
-            // Section: About
+            // Section: About (With Dev Mode Trigger)
             item { SettingsSectionHeader("About") }
             item {
                 SettingsItem(
                     icon = Icons.Default.Info,
                     title = "Version",
-                    subtitle = "Neuromind v3.5",
-                    onClick = { }
+                    subtitle = if (isDevModeEnabled) "Neuromind v3.7 (Dev Mode Active)" else "Neuromind v3.7",
+                    onClick = {
+                        if (!isDevModeEnabled) {
+                            devModeClicks++
+                            if (devModeClicks >= 4) {
+                                isDevModeEnabled = true
+                                Toast.makeText(context, "Developer Mode Enabled", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
                 )
+            }
+
+            // Section: Developer Options (Hidden until unlocked)
+            if (isDevModeEnabled) {
+                item { SettingsSectionHeader("Developer Options") }
+                item {
+                    SettingsItem(
+                        icon = Icons.Default.AddCircleOutline,
+                        title = "Load Sample Tasks",
+                        subtitle = "Adds 5 realistic tasks at once",
+                        onClick = {
+                            viewModel.generateDemoData()
+                            Toast.makeText(context, "Tasks Added", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                }
+                item {
+                    SettingsItem(
+                        icon = Icons.Default.CalendarViewWeek,
+                        title = "Load Full Timetable",
+                        subtitle = "Adds a full Mon-Fri class schedule",
+                        onClick = {
+                            viewModel.generateBaseTimetable()
+                            Toast.makeText(context, "Timetable Loaded", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                }
+                item {
+                    SettingsItem(
+                        icon = Icons.Default.NotificationsActive,
+                        title = "Test Notifications",
+                        subtitle = "Trigger a notification immediately",
+                        onClick = { viewModel.testNotification(context) }
+                    )
+                }
+                item {
+                    SettingsItem(
+                        icon = Icons.Default.DeleteForever,
+                        title = "Reset App Data",
+                        subtitle = "Clear Tasks & Timetable DB",
+                        onClick = { showResetConfirmation = true }
+                    )
+                }
             }
         }
     }

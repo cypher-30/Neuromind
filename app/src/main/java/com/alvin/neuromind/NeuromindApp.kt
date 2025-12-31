@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -25,6 +26,7 @@ import com.alvin.neuromind.data.preferences.UserPreferencesRepository
 import com.alvin.neuromind.domain.Scheduler
 import com.alvin.neuromind.navigation.Screen
 import com.alvin.neuromind.ui.dashboard.DashboardScreen
+import com.alvin.neuromind.ui.dashboard.DashboardViewModel
 import com.alvin.neuromind.ui.dashboard.DashboardViewModelFactory
 import com.alvin.neuromind.ui.feedback.FeedbackScreen
 import com.alvin.neuromind.ui.feedback.FeedbackViewModelFactory
@@ -78,12 +80,16 @@ fun NeuromindApp(
                     // 1. Dashboard
                     composable(Screen.Dashboard.route) {
                         val factory = DashboardViewModelFactory(repository, scheduler)
-                        val vm = viewModel<com.alvin.neuromind.ui.dashboard.DashboardViewModel>(factory = factory)
+                        val vm = viewModel<DashboardViewModel>(factory = factory)
                         DashboardScreen(
                             viewModel = vm,
                             onNavigateToTasks = { navController.navigate(Screen.TaskList.withArgs(true)) },
                             onNavigateToTimetable = { navController.navigate(Screen.Timetable.route) },
-                            onNavigateToFeedback = { navController.navigate(Screen.Feedback.route) }
+                            onNavigateToFeedback = { navController.navigate(Screen.Feedback.route) },
+                            onTaskClick = { task ->
+                                // Navigate to Edit with ID
+                                navController.navigate(Screen.AddEditTask.route + "?taskId=${task.id}")
+                            }
                         )
                     }
 
@@ -94,18 +100,33 @@ fun NeuromindApp(
                     ) { backStackEntry ->
                         val isRescheduleMode = backStackEntry.arguments?.getBoolean("isRescheduleMode") ?: false
                         val factory = TaskViewModelFactory(repository, scheduler)
-                        val vm = viewModel<com.alvin.neuromind.ui.tasks.TaskViewModel>(factory = factory)
+                        val vm = viewModel<TaskViewModel>(factory = factory)
+
                         TaskListScreen(
                             viewModel = vm,
                             isRescheduleMode = isRescheduleMode,
-                            onAddTaskClicked = { navController.navigate(Screen.AddEditTask.route) }
+                            onAddTaskClicked = { navController.navigate(Screen.AddEditTask.route) },
+                            onEditTaskClicked = { task ->
+                                // FIXED: Navigate to Edit with ID
+                                navController.navigate(Screen.AddEditTask.route + "?taskId=${task.id}")
+                            }
                         )
                     }
 
                     // 3. Add/Edit Task
-                    composable(Screen.AddEditTask.route) {
+                    composable(
+                        route = Screen.AddEditTask.route + "?taskId={taskId}",
+                        arguments = listOf(navArgument("taskId") { defaultValue = -1 })
+                    ) { backStackEntry ->
+                        val taskId = backStackEntry.arguments?.getInt("taskId") ?: -1
                         val factory = AddEditTaskViewModelFactory(repository)
                         val vm = viewModel<AddEditTaskViewModel>(factory = factory)
+
+                        // Load data if editing an existing task
+                        LaunchedEffect(taskId) {
+                            if (taskId != -1) vm.loadTask(taskId)
+                        }
+
                         AddEditTaskScreen(viewModel = vm, onNavigateUp = { navController.navigateUp() })
                     }
 
@@ -166,7 +187,6 @@ private fun BottomNavBar(navController: NavController) {
             NavigationBarItem(
                 selected = currentDestination?.hierarchy?.any { it.route == item.screen.route } == true,
                 onClick = {
-                    // STABILIZATION FIX: Check destination before navigating
                     if (currentDestination?.route != item.screen.route) {
                         navController.navigate(item.screen.route) {
                             popUpTo(navController.graph.findStartDestination().id) {

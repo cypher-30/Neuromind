@@ -2,27 +2,24 @@ package com.alvin.neuromind.data
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import java.util.UUID
 
-enum class Difficulty { EASY, MEDIUM, HARD }
-enum class Priority { LOW, MEDIUM, HIGH }
+enum class Priority { HIGH, MEDIUM, LOW }
+enum class Difficulty { HARD, MEDIUM, EASY }
 
 @Entity(tableName = "tasks")
 data class Task(
-    @PrimaryKey val id: UUID = UUID.randomUUID(),
+    @PrimaryKey(autoGenerate = true)
+    val id: Int = 0, // FIXED: Must be Int, defaulting to 0 for Auto-Increment
     val title: String,
     val description: String?,
     val dueDate: Long?,
-    val isRecurring: Boolean = false,
-    val recurrencePattern: String? = null,
-    val durationMinutes: Int = 60,
-    val difficulty: Difficulty = Difficulty.MEDIUM,
-    val priority: Priority = Priority.LOW,
+    val priority: Priority,
+    val difficulty: Difficulty,
     val isCompleted: Boolean = false,
     val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis(),
-    val parentId: UUID? = null
+    val durationMinutes: Int = 60
 ) {
+    // Helper to check if overdue
     val isOverdue: Boolean
-        get() = dueDate?.let { it < System.currentTimeMillis() } ?: false && !isCompleted
+        get() = !isCompleted && dueDate != null && dueDate < System.currentTimeMillis()
 }

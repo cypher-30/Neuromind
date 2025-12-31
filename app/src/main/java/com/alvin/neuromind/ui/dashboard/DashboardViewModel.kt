@@ -3,15 +3,15 @@ package com.alvin.neuromind.ui.dashboard
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.alvin.neuromind.data.Priority
 import com.alvin.neuromind.data.Task
 import com.alvin.neuromind.data.TaskRepository
 import com.alvin.neuromind.data.TimetableEntry
 import com.alvin.neuromind.domain.Scheduler
 import com.alvin.neuromind.domain.TimeSlot
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -32,56 +32,52 @@ class DashboardViewModel(
     private val scheduler: Scheduler
 ) : ViewModel() {
 
-    // We use flowOn(Dispatchers.Default) to move calculations off the main thread
     val uiState: StateFlow<DashboardUiState> = combine(
         repository.allTasks,
         repository.allTimetableEntries
-    ) { tasks, timetableEntries ->
-        // This block now runs in the background
-        val today = LocalDate.now()
-        val greeting = getGreeting()
-        val dateStr = today.format(DateTimeFormatter.ofPattern("EEEE, MMMM d"))
+    ) { tasks, timetable ->
 
-        val pending = tasks.count { !it.isCompleted }
-        val completed = tasks.count { it.isCompleted }
+        // 1. Calculate Stats
+        val pendingCount = tasks.count { !it.isCompleted }
+        val completedCount = tasks.count { it.isCompleted }
 
-        // Priorities: Overdue or High Priority, not done
-        val priorities = tasks.filter { !it.isCompleted && (it.isOverdue || it.priority == Priority.HIGH) }
-            .sortedBy { it.dueDate }
+        // 2. Get Priority Tasks (High Priority or Overdue)
+        val priorityList = tasks.filter { !it.isCompleted }
+            .sortedByDescending { it.priority } // High priority first
             .take(3)
 
-        // Events: Today, sorted by time
-        val todayEvents = timetableEntries
-            .filter { it.dayOfWeek == today.dayOfWeek }
+        // 3. Get Upcoming Events (Today)
+        val today = LocalDate.now()
+        val nowTime = LocalTime.now()
+        val eventsToday = timetable.filter { it.dayOfWeek == today.dayOfWeek }
+            .filter { it.startTime.isAfter(nowTime) } // Only future events today
             .sortedBy { it.startTime }
+            .take(3)
 
-        // AI Scheduling (The Heavy Math)
-        val freeSlots = scheduler.calculateFreeTimeSlots(today.dayOfWeek, todayEvents)
-        val plan = scheduler.scheduleTasks(tasks, freeSlots)
+        // 4. Generate AI Plan (Using the new Scheduler)
+        val plan = scheduler.generateSchedule(tasks, timetable)
 
         DashboardUiState(
-            greeting = greeting,
-            currentDate = dateStr,
-            pendingTaskCount = pending,
-            completedTaskCount = completed,
-            priorityTasks = priorities,
-            upcomingEvents = todayEvents.take(2),
+            greeting = getGreeting(),
+            currentDate = today.format(DateTimeFormatter.ofPattern("EEEE, MMM d")),
+            pendingTaskCount = pendingCount,
+            completedTaskCount = completedCount,
+            priorityTasks = priorityList,
+            upcomingEvents = eventsToday,
             todaysPlan = plan,
             isLoading = false
         )
-    }
-        .flowOn(Dispatchers.Default) // <--- CRITICAL FIX: Moves calculation to background
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = DashboardUiState(isLoading = true)
-        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = DashboardUiState()
+    )
 
     private fun getGreeting(): String {
         val hour = LocalTime.now().hour
         return when (hour) {
             in 5..11 -> "Good Morning"
-            in 12..17 -> "Good Afternoon"
+            in 12..16 -> "Good Afternoon"
             else -> "Good Evening"
         }
     }

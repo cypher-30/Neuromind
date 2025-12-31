@@ -2,101 +2,64 @@ package com.alvin.neuromind.domain
 
 import com.alvin.neuromind.data.Task
 import com.alvin.neuromind.data.TimetableEntry
-import java.time.DayOfWeek
-import java.time.Duration // FIX: Using the correct java.time.Duration
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.ZoneId
 
-data class TimeSlot(val start: LocalTime, val end: LocalTime) {
-    // This now correctly uses java.time.Duration
-    val durationMinutes: Long get() = Duration.between(start, end).toMinutes()
-}
-
-data class ProposedSlot(
-    val date: LocalDate,
-    val timeSlot: TimeSlot
+data class TimeSlot(
+    val start: LocalTime,
+    val end: LocalTime
 )
 
 class Scheduler {
-    private val dayStartTime: LocalTime = LocalTime.of(8, 0)
-    private val dayEndTime: LocalTime = LocalTime.of(23, 0)
 
-    fun calculateFreeTimeSlots(
-        day: DayOfWeek,
-        timetableEntries: List<TimetableEntry>
-    ): List<TimeSlot> {
-        // This function now correctly uses the class properties dayStartTime and dayEndTime
-        val busySlots = timetableEntries.filter { it.dayOfWeek == day }.sortedBy { it.startTime }
-        if (busySlots.isEmpty()) return listOf(TimeSlot(this.dayStartTime, this.dayEndTime))
+    fun generateSchedule(
+        tasks: List<Task>,
+        timetable: List<TimetableEntry>,
+        date: LocalDate = LocalDate.now()
+    ): Map<TimeSlot, Task> {
+        val schedule = mutableMapOf<TimeSlot, Task>()
 
-        val freeSlots = mutableListOf<TimeSlot>()
-        var lastBusySlotEnd = this.dayStartTime
-        for (busySlot in busySlots) {
-            if (busySlot.startTime > lastBusySlotEnd) {
-                freeSlots.add(TimeSlot(lastBusySlotEnd, busySlot.startTime))
-            }
-            lastBusySlotEnd = busySlot.endTime
-        }
+        // 1. Filter tasks that are relevant (not completed)
+        val todoTasks = tasks.filter { !it.isCompleted }
+            .sortedByDescending { it.priority } // High priority first
 
-        if (this.dayEndTime > lastBusySlotEnd) {
-            freeSlots.add(TimeSlot(lastBusySlotEnd, this.dayEndTime))
-        }
-        return freeSlots
-    }
+        // 2. Simple blocking: Schedule tasks in free time slots
+        // This is a simplified logic to get it compiling and running.
+        // It assumes a 9-5 work day for simplicity in this version.
 
-    fun scheduleTasks(tasks: List<Task>, freeSlots: List<TimeSlot>): Map<TimeSlot, Task> {
-        val sortedTasks = tasks.filter { !it.isCompleted && it.parentId == null }
-            .sortedWith(compareBy({ it.priority.ordinal * -1 }, { it.dueDate ?: Long.MAX_VALUE }))
-        val scheduledPlan = mutableMapOf<TimeSlot, Task>()
-        val remainingSlots = freeSlots.toMutableList()
-        for (task in sortedTasks) {
-            var slotFoundForTask = false
-            val slotsIterator = remainingSlots.iterator()
-            while (slotsIterator.hasNext() && !slotFoundForTask) {
-                val currentSlot = slotsIterator.next()
-                if (task.durationMinutes <= currentSlot.durationMinutes) {
-                    val scheduledSlot = TimeSlot(currentSlot.start, currentSlot.start.plusMinutes(task.durationMinutes.toLong()))
-                    scheduledPlan[scheduledSlot] = task
-                    slotsIterator.remove()
-                    val remainingTimeStart = scheduledSlot.end
-                    if (remainingTimeStart < currentSlot.end) {
-                        remainingSlots.add(TimeSlot(remainingTimeStart, currentSlot.end))
-                        remainingSlots.sortBy { it.start }
-                    }
-                    slotFoundForTask = true
+        var currentTime = LocalTime.of(9, 0)
+        val dayEnd = LocalTime.of(17, 0)
+
+        for (task in todoTasks) {
+            if (currentTime.isAfter(dayEnd)) break
+
+            val taskDuration = 60L // Assume 1 hour per task for now
+            val endTime = currentTime.plusMinutes(taskDuration)
+
+            // Check if this slots overlaps with any fixed class/event
+            val isBlocked = timetable.any { entry ->
+                // Check if entry is for today
+                if (entry.dayOfWeek == date.dayOfWeek) {
+                    val entryStart = entry.startTime
+                    val entryEnd = entry.endTime
+                    // Simple overlap check
+                    currentTime.isBefore(entryEnd) && endTime.isAfter(entryStart)
+                } else {
+                    false
                 }
             }
-        }
-        return scheduledPlan
-    }
 
-    fun findNextAvailableSlot(task: Task, allTimetableEntries: List<TimetableEntry>): ProposedSlot? {
-        var currentDate = LocalDate.now()
-
-        for (i in 0..14) {
-            val searchDate = currentDate.plusDays(i.toLong())
-            val dayOfWeek = searchDate.dayOfWeek
-
-            // This now correctly uses the class property dayStartTime
-            val effectiveStartTime = if (searchDate.isEqual(LocalDate.now()) && LocalTime.now().isAfter(this.dayStartTime)) {
-                LocalTime.now()
+            if (!isBlocked && endTime.isBefore(dayEnd)) {
+                schedule[TimeSlot(currentTime, endTime)] = task
+                currentTime = endTime.plusMinutes(15) // 15 min break
             } else {
-                this.dayStartTime
-            }
-
-            // Create a temporary list of entries for the day, including a dummy entry for the start time
-            val dailyEntries = allTimetableEntries.toMutableList()
-            dailyEntries.add(TimetableEntry(title="Day Start", dayOfWeek=dayOfWeek, startTime=LocalTime.MIN, endTime=effectiveStartTime))
-
-            val freeSlots = calculateFreeTimeSlots(dayOfWeek, dailyEntries)
-
-            val suitableSlot = freeSlots.firstOrNull { it.durationMinutes >= task.durationMinutes }
-
-            if (suitableSlot != null) {
-                val proposedTimeSlot = TimeSlot(suitableSlot.start, suitableSlot.start.plusMinutes(task.durationMinutes.toLong()))
-                return ProposedSlot(date = searchDate, timeSlot = proposedTimeSlot)
+                // If blocked, just skip 30 mins and try again (naive algorithm)
+                currentTime = currentTime.plusMinutes(30)
             }
         }
-        return null
+
+        return schedule
     }
 }

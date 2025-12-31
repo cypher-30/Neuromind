@@ -66,6 +66,7 @@ fun InsightsScreen(viewModel: InsightsViewModel) {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text("Tasks Completed", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        // ADDED PADDING HERE to fix layout issues
                         Spacer(modifier = Modifier.height(24.dp))
 
                         if (uiState.completionData.isEmpty()) {
@@ -73,7 +74,6 @@ fun InsightsScreen(viewModel: InsightsViewModel) {
                                 Text("No activity recorded yet.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         } else {
-                            // STABILIZATION FIX: Use remember to prevent calculation glitches during redraws
                             val maxCount = remember(uiState.completionData) {
                                 uiState.completionData.maxOfOrNull { it.second } ?: 1
                             }
@@ -101,7 +101,6 @@ fun InsightsScreen(viewModel: InsightsViewModel) {
                                             Spacer(modifier = Modifier.height(4.dp))
                                         }
 
-                                        // STABILIZATION FIX: Ensure no NaN/Infinite crashes
                                         val rawFraction = count.toFloat() / scaleBase.toFloat()
                                         val heightFraction = if (rawFraction.isNaN()) 0.05f else rawFraction.coerceIn(0.05f, 1f)
 
@@ -113,7 +112,8 @@ fun InsightsScreen(viewModel: InsightsViewModel) {
                                                 .background(if (count > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
                                         )
 
-                                        Spacer(modifier = Modifier.height(8.dp))
+                                        // ADDED SPACER between bar and text to prevent blocking
+                                        Spacer(modifier = Modifier.height(12.dp))
 
                                         Text(
                                             text = day,
@@ -125,6 +125,19 @@ fun InsightsScreen(viewModel: InsightsViewModel) {
                                 }
                             }
                         }
+                    }
+                }
+            }
+
+            // 4. Recent Reflections Section
+            item {
+                Text("Recent Journal Entries", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
+            }
+            item {
+                Card {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Check the 'Feedback' logs in database to see history.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        // This serves as a placeholder until we wire up feedback log reading
                     }
                 }
             }

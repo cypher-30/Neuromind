@@ -1,24 +1,46 @@
 package com.alvin.neuromind.data
 
 import kotlinx.coroutines.flow.Flow
-import java.util.UUID
 
 class TaskRepository(
     private val taskDao: TaskDao,
     private val timetableDao: TimetableDao,
     private val feedbackLogDao: FeedbackLogDao
 ) {
+    // --- TASKS ---
     val allTasks: Flow<List<Task>> = taskDao.getAllTasks()
-    suspend fun insert(task: Task) = taskDao.insertTask(task)
-    suspend fun update(task: Task) = taskDao.updateTask(task)
-    suspend fun delete(task: Task) = taskDao.deleteTaskAndSubTasks(task)
 
+    suspend fun getTaskById(id: Int): Task? {
+        return taskDao.getTaskById(id)
+    }
+
+    suspend fun insert(task: Task) {
+        taskDao.insert(task)
+    }
+
+    suspend fun update(task: Task) {
+        taskDao.update(task)
+    }
+
+    suspend fun delete(task: Task) {
+        taskDao.delete(task)
+    }
+
+    // --- TIMETABLE ---
     val allTimetableEntries: Flow<List<TimetableEntry>> = timetableDao.getAllEntries()
-    suspend fun insert(entry: TimetableEntry) = timetableDao.insertEntry(entry)
-    suspend fun delete(entry: TimetableEntry) = timetableDao.deleteEntry(entry)
 
+    suspend fun insert(entry: TimetableEntry) {
+        timetableDao.insert(entry)
+    }
+
+    suspend fun delete(entry: TimetableEntry) {
+        timetableDao.delete(entry)
+    }
+
+    // --- FEEDBACK ---
     val allFeedbackLogs: Flow<List<FeedbackLog>> = feedbackLogDao.getAllLogs()
-    suspend fun insert(log: FeedbackLog) = feedbackLogDao.insertLog(log)
 
-    suspend fun getTaskById(id: java.util.UUID): Task? = taskDao.getTaskById(id)
+    suspend fun insert(log: FeedbackLog) {
+        feedbackLogDao.insert(log)
+    }
 }

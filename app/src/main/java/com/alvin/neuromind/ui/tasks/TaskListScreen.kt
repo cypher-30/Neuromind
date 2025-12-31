@@ -1,114 +1,86 @@
 package com.alvin.neuromind.ui.tasks
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import com.alvin.neuromind.data.Priority
 import com.alvin.neuromind.data.Task
-import com.alvin.neuromind.domain.ProposedSlot
-import java.time.format.DateTimeFormatter
-import java.util.UUID
+import java.text.SimpleDateFormat
+import java.util.*
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TaskListScreen(
     viewModel: TaskViewModel,
     isRescheduleMode: Boolean,
-    onAddTaskClicked: () -> Unit
+    onAddTaskClicked: () -> Unit,
+    onEditTaskClicked: (Task) -> Unit // New parameter for navigation
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val proposals by viewModel.proposals.collectAsState()
-
-    LaunchedEffect(key1 = isRescheduleMode) {
-        viewModel.setMode(isRescheduleMode)
-    }
-
-    if (proposals.isNotEmpty()) {
-        RescheduleProposalDialog(
-            proposals = proposals,
-            tasks = uiState.hierarchicalTasks.map { it.parent },
-            onAccept = { viewModel.acceptProposals() },
-            onDismiss = { viewModel.clearProposals() }
-        )
-    }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(if (uiState.isRescheduleMode) "Reschedule Overdue" else "My Tasks") },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent
-                )
-            )
-        },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = onAddTaskClicked,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Task")
+            if (!isRescheduleMode) {
+                FloatingActionButton(onClick = onAddTaskClicked) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Task")
+                }
             }
         }
     ) { innerPadding ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(innerPadding)
-        ) {
-            FilterChipGroup(
-                selectedFilter = uiState.selectedFilter,
-                onFilterSelected = { viewModel.setFilter(it) },
-                enabled = !uiState.isRescheduleMode
-            )
-            HorizontalDivider()
+        if (uiState.isLoading) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        } else if (uiState.overdueTasks.isEmpty() && uiState.todayTasks.isEmpty() && uiState.upcomingTasks.isEmpty() && uiState.completedTasks.isEmpty()) {
+            EmptyState(innerPadding)
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // 1. Overdue Section
+                if (uiState.overdueTasks.isNotEmpty()) {
+                    item { TaskSectionHeader("Overdue", MaterialTheme.colorScheme.error) }
+                    items(items = uiState.overdueTasks, key = { it.id }) { task ->
+                        TaskCard(task, viewModel, onClick = { onEditTaskClicked(task) })
+                    }
+                }
 
-            if (uiState.isLoading) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+                // 2. Today Section
+                if (uiState.todayTasks.isNotEmpty()) {
+                    item { TaskSectionHeader("Today", MaterialTheme.colorScheme.primary) }
+                    items(items = uiState.todayTasks, key = { it.id }) { task ->
+                        TaskCard(task, viewModel, onClick = { onEditTaskClicked(task) })
+                    }
                 }
-            } else if (uiState.hierarchicalTasks.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
-                    Text(if (uiState.isRescheduleMode) "No overdue tasks. Great job!" else "No tasks here!")
+
+                // 3. Upcoming Section
+                if (uiState.upcomingTasks.isNotEmpty()) {
+                    item { TaskSectionHeader("Upcoming", MaterialTheme.colorScheme.secondary) }
+                    items(items = uiState.upcomingTasks, key = { it.id }) { task ->
+                        TaskCard(task, viewModel, onClick = { onEditTaskClicked(task) })
+                    }
                 }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    uiState.hierarchicalTasks.forEach { hierarchicalTask ->
-                        val parentTask = hierarchicalTask.parent
-                        val isExpanded = uiState.expandedTaskIds.contains(parentTask.id)
-                        item(key = parentTask.id) {
-                            TaskCard(
-                                task = parentTask,
-                                subtaskCount = hierarchicalTask.subTasks.size,
-                                isExpanded = isExpanded,
-                                onExpandToggle = { viewModel.toggleTaskExpansion(parentTask.id) },
-                                onCompletedChange = { isChecked ->
-                                    viewModel.onTaskCompleted(parentTask, isChecked)
-                                }
-                            )
-                        }
-                        if (isExpanded) {
-                            items(hierarchicalTask.subTasks, key = { "sub_${it.id}" }) { subtask ->
-                                TaskCard(
-                                    task = subtask,
-                                    isSubtask = true,
-                                    onCompletedChange = { isChecked ->
-                                        viewModel.onTaskCompleted(subtask, isChecked)
-                                    }
-                                )
-                            }
-                        }
+
+                // 4. Completed Section
+                if (uiState.completedTasks.isNotEmpty()) {
+                    item { TaskSectionHeader("Completed", MaterialTheme.colorScheme.outline) }
+                    items(items = uiState.completedTasks, key = { it.id }) { task ->
+                        TaskCard(task, viewModel, onClick = { onEditTaskClicked(task) })
                     }
                 }
             }
@@ -117,66 +89,112 @@ fun TaskListScreen(
 }
 
 @Composable
-private fun RescheduleProposalDialog(
-    proposals: Map<UUID, ProposedSlot>,
-    tasks: List<Task>,
-    onAccept: () -> Unit,
-    onDismiss: () -> Unit
+fun TaskCard(
+    task: Task,
+    viewModel: TaskViewModel,
+    onClick: () -> Unit
 ) {
-    val dateFormatter = remember { DateTimeFormatter.ofPattern("MMM d") }
-    val timeFormatter = remember { DateTimeFormatter.ofPattern("h:mm a") }
+    val priorityColor = when (task.priority) {
+        Priority.HIGH -> MaterialTheme.colorScheme.error
+        Priority.MEDIUM -> MaterialTheme.colorScheme.tertiary
+        Priority.LOW -> MaterialTheme.colorScheme.secondary
+    }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("New Times Suggested") },
-        text = {
-            LazyColumn {
-                items(proposals.entries.toList()) { (taskId, proposal) ->
-                    val task = tasks.find { it.id == taskId }
-                    if (task != null) {
-                        Column(modifier = Modifier.padding(vertical = 8.dp)) {
-                            Text(text = task.title, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(
-                                text = "→ New time: ${proposal.date.format(dateFormatter)} at ${proposal.timeSlot.start.format(timeFormatter)}",
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                        }
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }, // Makes the whole card tap-to-edit
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (task.isCompleted) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surfaceContainer
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(12.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.Top
+        ) {
+            // Checkbox
+            Checkbox(
+                checked = task.isCompleted,
+                onCheckedChange = { viewModel.onTaskCheckedChange(task, it) },
+                modifier = Modifier.size(24.dp).padding(end = 8.dp)
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Text Content
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = task.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    textDecoration = if (task.isCompleted) TextDecoration.LineThrough else null
+                )
+
+                if (!task.description.isNullOrBlank()) {
+                    Text(
+                        text = task.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Meta Row (Priority Badge & Date)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    AssistChip(
+                        onClick = {},
+                        label = { Text(task.priority.name, style = MaterialTheme.typography.labelSmall) },
+                        leadingIcon = { Icon(Icons.Default.Flag, null, tint = priorityColor, modifier = Modifier.size(12.dp)) },
+                        modifier = Modifier.height(24.dp)
+                    )
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    if (task.dueDate != null) {
+                        val format = SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
+                        Text(
+                            text = format.format(Date(task.dueDate)),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (!task.isCompleted && task.dueDate < System.currentTimeMillis()) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline
+                        )
                     }
                 }
             }
-        },
-        confirmButton = { Button(onClick = onAccept) { Text("Accept All") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+
+            // Delete Button
+            IconButton(onClick = { viewModel.deleteTask(task) }) {
+                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f))
+            }
+        }
+    }
+}
+
+@Composable
+fun TaskSectionHeader(title: String, color: Color) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleSmall,
+        color = color,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(vertical = 8.dp)
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun FilterChipGroup(selectedFilter: TaskFilter, onFilterSelected: (TaskFilter) -> Unit, enabled: Boolean) {
-    Row(
+fun EmptyState(padding: PaddingValues) {
+    Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+            .fillMaxSize()
+            .padding(padding),
+        contentAlignment = Alignment.Center
     ) {
-        TaskFilter.entries.forEach { filter ->
-            FilterChip(
-                enabled = enabled,
-                selected = selectedFilter == filter,
-                onClick = { onFilterSelected(filter) },
-                label = { Text(text = filter.name.lowercase().replaceFirstChar { it.titlecase() }) },
-                leadingIcon = if (selectedFilter == filter) {
-                    {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = "Selected",
-                            modifier = Modifier.size(FilterChipDefaults.IconSize)
-                        )
-                    }
-                } else {
-                    null
-                }
-            )
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("No tasks found", style = MaterialTheme.typography.headlineSmall)
+            Text("Tap + to add one", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

@@ -5,129 +5,87 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.alvin.neuromind.data.Task
 import com.alvin.neuromind.data.TaskRepository
-import com.alvin.neuromind.domain.ProposedSlot
-import com.alvin.neuromind.domain.Scheduler
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.util.UUID
-
-// Enums and Helper Classes
-enum class TaskFilter { ALL, TODAY, UPCOMING, OVERDUE }
-
-data class HierarchicalTask(
-    val parent: Task,
-    val subTasks: List<Task>
-)
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 
 data class TaskListUiState(
-    val hierarchicalTasks: List<HierarchicalTask> = emptyList(),
-    val selectedFilter: TaskFilter = TaskFilter.ALL,
-    val isRescheduleMode: Boolean = false,
-    val isLoading: Boolean = false,
-    val expandedTaskIds: Set<UUID> = emptySet()
+    val overdueTasks: List<Task> = emptyList(),
+    val todayTasks: List<Task> = emptyList(),
+    val upcomingTasks: List<Task> = emptyList(),
+    val completedTasks: List<Task> = emptyList(),
+    val isLoading: Boolean = true
 )
 
-// The Main ViewModel
 class TaskViewModel(
-    private val repository: TaskRepository,
-    private val scheduler: Scheduler
+    private val repository: TaskRepository
 ) : ViewModel() {
 
-    private val _isRescheduleMode = MutableStateFlow(false)
-    private val _filter = MutableStateFlow(TaskFilter.ALL)
-    private val _expandedTaskIds = MutableStateFlow<Set<UUID>>(emptySet())
+    val uiState: StateFlow<TaskListUiState> = repository.allTasks
+        .map { tasks ->
+            val now = System.currentTimeMillis()
+            val todayDate = LocalDate.now()
 
-    // Proposals for rescheduling (Smart AI feature)
-    private val _proposals = MutableStateFlow<Map<UUID, ProposedSlot>>(emptyMap())
-    val proposals: StateFlow<Map<UUID, ProposedSlot>> = _proposals.asStateFlow()
+            // 1. Filter & Sort
+            val (completed, active) = tasks.partition { it.isCompleted }
 
-    val uiState: StateFlow<TaskListUiState> = combine(
-        repository.allTasks,
-        _filter,
-        _isRescheduleMode,
-        _expandedTaskIds
-    ) { tasks, filter, isRescheduleMode, expandedIds ->
-        // 1. Organize tasks into Parent -> Subtasks
-        val parentTasks = tasks.filter { it.parentId == null }
-        val subTasksMap = tasks.filter { it.parentId != null }.groupBy { it.parentId }
+            val overdue = active.filter {
+                it.dueDate != null && it.dueDate < now && !isSameDay(it.dueDate, todayDate)
+            }.sortedBy { it.dueDate }
 
-        val hierarchical = parentTasks.map { parent ->
-            HierarchicalTask(parent, subTasksMap[parent.id] ?: emptyList())
+            val today = active.filter {
+                it.dueDate != null && isSameDay(it.dueDate, todayDate)
+            }.sortedByDescending { it.priority } // High priority first for today
+
+            val upcoming = active.filter {
+                it.dueDate == null || (it.dueDate > now && !isSameDay(it.dueDate, todayDate))
+            }.sortedBy { it.dueDate ?: Long.MAX_VALUE }
+
+            TaskListUiState(
+                overdueTasks = overdue,
+                todayTasks = today,
+                upcomingTasks = upcoming,
+                completedTasks = completed,
+                isLoading = false
+            )
         }
-
-        // 2. Filter logic
-        val filtered = if (isRescheduleMode) {
-            // In reschedule mode, only show active, overdue tasks
-            hierarchical.filter { it.parent.isOverdue && !it.parent.isCompleted }
-        } else {
-            when (filter) {
-                TaskFilter.ALL -> hierarchical.filter { !it.parent.isCompleted }
-                TaskFilter.TODAY -> hierarchical.filter { !it.parent.isCompleted /* Add actual date logic here later */ }
-                TaskFilter.UPCOMING -> hierarchical.filter { !it.parent.isCompleted && !it.parent.isOverdue }
-                TaskFilter.OVERDUE -> hierarchical.filter { it.parent.isOverdue && !it.parent.isCompleted }
-            }
-        }
-
-        TaskListUiState(
-            hierarchicalTasks = filtered,
-            selectedFilter = filter,
-            isRescheduleMode = isRescheduleMode,
-            expandedTaskIds = expandedIds
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = TaskListUiState()
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TaskListUiState())
 
-    // --- Actions ---
-
-    fun setMode(isReschedule: Boolean) {
-        _isRescheduleMode.value = isReschedule
-    }
-
-    fun setFilter(filter: TaskFilter) {
-        _filter.value = filter
-    }
-
-    fun toggleTaskExpansion(taskId: UUID) {
-        _expandedTaskIds.update { current ->
-            if (current.contains(taskId)) current - taskId else current + taskId
-        }
-    }
-
-    fun onTaskCompleted(task: Task, isCompleted: Boolean) {
+    fun onTaskCheckedChange(task: Task, isChecked: Boolean) {
         viewModelScope.launch {
-            repository.update(task.copy(isCompleted = isCompleted))
+            repository.update(task.copy(isCompleted = isChecked))
         }
     }
 
-    // --- Smart Reschedule Logic ---
-
-    fun acceptProposals() {
+    fun deleteTask(task: Task) {
         viewModelScope.launch {
-            val currentProposals = _proposals.value
-            currentProposals.forEach { (taskId, proposal) ->
-                val task = repository.getTaskById(taskId) // You might need to add getTaskById to Repository if missing
-                if (task != null) {
-                    // Update task with new time
-                    // For now, we just mock this update or assume Repository handles it
-                    // Ideally: repository.update(task.copy(dueDate = proposal.date...))
-                }
-            }
-            _proposals.value = emptyMap()
+            repository.delete(task)
         }
     }
 
-    fun clearProposals() {
-        _proposals.value = emptyMap()
+    private fun isSameDay(millis: Long, date: LocalDate): Boolean {
+        val taskDate = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate()
+        return taskDate == date
     }
 }
 
 class TaskViewModelFactory(
     private val repository: TaskRepository,
-    private val scheduler: Scheduler
+    private val scheduler: com.alvin.neuromind.domain.Scheduler // Kept for app compatibility
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(TaskViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return TaskViewModel(repository, scheduler) as T
+            return TaskViewModel(repository) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }
