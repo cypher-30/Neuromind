@@ -2,7 +2,6 @@ package com.alvin.neuromind.data
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import java.util.UUID
 
 enum class Mood(val score: Int) {
     STRESSED(1),
@@ -14,7 +13,8 @@ enum class Mood(val score: Int) {
 
 @Entity(tableName = "feedback_logs")
 data class FeedbackLog(
-    @PrimaryKey val id: UUID = UUID.randomUUID(),
+    @PrimaryKey(autoGenerate = true)
+    val id: Int = 0,
     val date: Long = System.currentTimeMillis(),
     val mood: Mood,
     val energyLevel: Int,

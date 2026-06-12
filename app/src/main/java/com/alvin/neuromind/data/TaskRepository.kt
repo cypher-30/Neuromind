@@ -7,40 +7,17 @@ class TaskRepository(
     private val timetableDao: TimetableDao,
     private val feedbackLogDao: FeedbackLogDao
 ) {
-    // --- TASKS ---
     val allTasks: Flow<List<Task>> = taskDao.getAllTasks()
+    suspend fun getTaskById(id: Int): Task? = taskDao.getTaskById(id)
+    suspend fun insertTask(task: Task) = taskDao.insertTask(task)
+    suspend fun updateTask(task: Task) = taskDao.updateTask(task)
+    suspend fun deleteTask(task: Task) = taskDao.deleteTaskAndSubTasks(task)
 
-    suspend fun getTaskById(id: Int): Task? {
-        return taskDao.getTaskById(id)
-    }
-
-    suspend fun insert(task: Task) {
-        taskDao.insert(task)
-    }
-
-    suspend fun update(task: Task) {
-        taskDao.update(task)
-    }
-
-    suspend fun delete(task: Task) {
-        taskDao.delete(task)
-    }
-
-    // --- TIMETABLE ---
     val allTimetableEntries: Flow<List<TimetableEntry>> = timetableDao.getAllEntries()
+    suspend fun insertTimetableEntry(entry: TimetableEntry) = timetableDao.insertEntry(entry)
+    suspend fun updateTimetableEntry(entry: TimetableEntry) = timetableDao.updateEntry(entry)
+    suspend fun deleteTimetableEntry(entry: TimetableEntry) = timetableDao.deleteEntry(entry)
 
-    suspend fun insert(entry: TimetableEntry) {
-        timetableDao.insert(entry)
-    }
-
-    suspend fun delete(entry: TimetableEntry) {
-        timetableDao.delete(entry)
-    }
-
-    // --- FEEDBACK ---
     val allFeedbackLogs: Flow<List<FeedbackLog>> = feedbackLogDao.getAllLogs()
-
-    suspend fun insert(log: FeedbackLog) {
-        feedbackLogDao.insert(log)
-    }
+    suspend fun insertFeedbackLog(log: FeedbackLog) = feedbackLogDao.insertFeedbackLog(log)
 }

@@ -1,25 +1,19 @@
 package com.alvin.neuromind.data
 
-import androidx.room.Dao
-import androidx.room.Delete
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
-import androidx.room.Query
+import androidx.room.*
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface TimetableDao {
-    @Query("SELECT * FROM timetable_entries")
-    fun getAllEntries(): Flow<List<TimetableEntry>>
-
-    // FIXED: Named 'insert', not 'insertEntry'
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(entry: TimetableEntry)
+    suspend fun insertEntry(entry: TimetableEntry) // Matches Repository reference
 
-    // FIXED: Named 'delete'
+    @Update
+    suspend fun updateEntry(entry: TimetableEntry)
+
     @Delete
-    suspend fun delete(entry: TimetableEntry)
+    suspend fun deleteEntry(entry: TimetableEntry)
 
-    @Query("DELETE FROM timetable_entries")
-    suspend fun deleteAllEntries()
+    @Query("SELECT * FROM timetable_entries ORDER BY dayOfWeek, startTime")
+    fun getAllEntries(): Flow<List<TimetableEntry>>
 }

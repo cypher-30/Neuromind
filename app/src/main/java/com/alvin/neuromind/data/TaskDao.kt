@@ -5,22 +5,21 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface TaskDao {
-    @Query("SELECT * FROM tasks ORDER BY isCompleted ASC, dueDate ASC")
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTask(task: Task)
+
+    @Update
+    suspend fun updateTask(task: Task)
+
+    @Delete
+    suspend fun deleteTask(task: Task)
+
+    @Query("SELECT * FROM tasks ORDER BY createdAt DESC")
     fun getAllTasks(): Flow<List<Task>>
 
     @Query("SELECT * FROM tasks WHERE id = :id")
-    suspend fun getTaskById(id: Int): Task? // FIXED: Expects Int
+    suspend fun getTaskById(id: Int): Task?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(task: Task)
-
-    @Update
-    suspend fun update(task: Task)
-
-    @Delete
-    suspend fun delete(task: Task)
-
-    // For the Settings "Reset" feature
-    @Query("DELETE FROM tasks")
-    suspend fun deleteAllTasks()
+    @Transaction
+    suspend fun deleteTaskAndSubTasks(task: Task) = deleteTask(task)
 }
