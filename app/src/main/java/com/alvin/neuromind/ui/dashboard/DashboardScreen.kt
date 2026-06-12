@@ -10,6 +10,8 @@ import androidx.compose.material.icons.automirrored.filled.ListAlt
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -29,19 +31,20 @@ fun DashboardScreen(
     viewModel: DashboardViewModel,
     onNavigateToTasks: () -> Unit,
     onNavigateToTimetable: () -> Unit,
-    onNavigateToFeedback: () -> Unit,
-    // Removed onTaskClick from navigation parameters because we handle it locally now
+    onNavigateToFeedback: () -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    // State for the Popup Dialog
     var selectedTask by remember { mutableStateOf<Task?>(null) }
 
     if (selectedTask != null) {
         TaskDetailsDialog(task = selectedTask!!, onDismiss = { selectedTask = null })
     }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             TopAppBar(
                 title = {
@@ -53,7 +56,8 @@ fun DashboardScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                }
+                },
+                scrollBehavior = scrollBehavior
             )
         },
         floatingActionButton = {
@@ -87,7 +91,7 @@ fun DashboardScreen(
                                 key(task.id) {
                                     PriorityTaskRow(
                                         task = task,
-                                        onClick = { selectedTask = task } // Show Popup
+                                        onClick = { selectedTask = task }
                                     )
                                     HorizontalDivider(thickness = 0.5.dp)
                                 }
@@ -130,10 +134,9 @@ fun DashboardScreen(
     }
 }
 
-// --- THE POPUP DIALOG ---
 @Composable
 fun TaskDetailsDialog(task: Task, onDismiss: () -> Unit) {
-    val formatter = SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
+    val formatter = remember { SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(task.title) },
@@ -169,19 +172,19 @@ fun PriorityTaskRow(task: Task, onClick: () -> Unit) {
     ) {
         val icon = if (task.isOverdue) Icons.Default.Warning else Icons.AutoMirrored.Filled.LabelImportant
         val color = if (task.isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-        Icon(icon, contentDescription = null, tint = color)
+        val iconDesc = if (task.isOverdue) "Overdue" else "High priority"
+        Icon(icon, contentDescription = iconDesc, tint = color)
         Spacer(modifier = Modifier.width(12.dp))
         Column {
             Text(task.title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
             if (task.dueDate != null) {
-                val format = SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
+                val format = remember { SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()) }
                 Text(format.format(Date(task.dueDate)), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
 }
 
-// ... (Keep SectionHeader, DashboardStatCard, EmptyStateCard, TimetableEventRow, AiPlanItem the same as previous) ...
 @Composable
 fun SectionHeader(title: String) {
     Text(
