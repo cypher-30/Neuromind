@@ -5,6 +5,7 @@ sealed class Screen(val route: String) {
     data object TaskList : Screen("task_list")
     data object AddEditTask : Screen("add_edit_task")
     data object Timetable : Screen("timetable")
+    data object FocusMode : Screen("focus_mode")
     data object Insights : Screen("insights")
     data object Settings : Screen("settings")
     data object Feedback : Screen("feedback")
