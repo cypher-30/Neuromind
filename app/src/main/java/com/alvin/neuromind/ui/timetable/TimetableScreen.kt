@@ -1,16 +1,16 @@
 package com.alvin.neuromind.ui.timetable
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -25,19 +25,18 @@ import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TimetableScreen(
-    viewModel: TimetableViewModel,
-    onNavigateBack: () -> Unit
-) {
-    val uiState by viewModel.uiState.collectAsState()
+fun TimetableScreen(viewModel: TimetableViewModel, onNavigateBack: () -> Unit) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var editingEntry by remember { mutableStateOf<TimetableEntry?>(null) }
     var showAddDialog by remember { mutableStateOf(false) }
 
-    if (showAddDialog) {
-        AddEntryDialog(
-            onDismiss = { showAddDialog = false },
-            onSave = { title, day, start, end, venue, details ->
-                viewModel.addEntry(title, day, start, end, venue, details)
-                showAddDialog = false
+    if (showAddDialog || editingEntry != null) {
+        AddEditEntryDialog(
+            existingEntry = editingEntry,
+            onDismiss = { showAddDialog = false; editingEntry = null },
+            onSave = { id, title, day, start, end, venue, details, isRec ->
+                viewModel.saveEntry(id, title, day, start, end, venue, details, isRec)
+                showAddDialog = false; editingEntry = null
             }
         )
     }
@@ -60,54 +59,73 @@ fun TimetableScreen(
         }
     ) { innerPadding ->
         if (uiState.entriesByDay.isEmpty()) {
-            EmptyScheduleState(modifier = Modifier.padding(innerPadding))
+            Box(modifier = Modifier.padding(innerPadding).fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("No upcoming events", style = MaterialTheme.typography.titleMedium)
+            }
         } else {
             AgendaList(
                 modifier = Modifier.padding(innerPadding),
-                entriesByDay = uiState.entriesByDay
+                entriesByDay = uiState.entriesByDay,
+                onEdit = { editingEntry = it },
+                onDelete = { viewModel.deleteEntry(it) }
             )
         }
     }
 }
 
 @Composable
-fun EmptyScheduleState(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(Icons.Default.CalendarToday, null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.surfaceVariant)
-            Spacer(modifier = Modifier.height(16.dp))
-            Text("No upcoming events", style = MaterialTheme.typography.titleMedium)
-            Text("Tap + to add a class", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
-@Composable
 fun AgendaList(
-    modifier: Modifier = Modifier,
-    entriesByDay: Map<DayOfWeek, List<TimetableEntry>>
+    modifier: Modifier,
+    entriesByDay: Map<DayOfWeek, List<TimetableEntry>>,
+    onEdit: (TimetableEntry) -> Unit,
+    onDelete: (TimetableEntry) -> Unit
 ) {
     val today = LocalDate.now().dayOfWeek
-    // Order days starting from Today, then wrapping around
     val orderedDays = DayOfWeek.entries.sortedBy { (it.value - today.value + 7) % 7 }
 
     LazyColumn(modifier = modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp)) {
         orderedDays.forEach { day ->
             val entries = entriesByDay[day]?.sortedBy { it.startTime } ?: emptyList()
-
             if (entries.isNotEmpty()) {
-                item {
-                    DayHeader(day = day, isToday = day == today)
+                item { DayHeader(day = day, isToday = day == today) }
+                items(entries, key = { it.id }) { entry ->
+                    AgendaEventCard(entry, onEdit, onDelete)
                 }
-                items(entries) { entry ->
-                    AgendaEventCard(entry)
+                item { Spacer(modifier = Modifier.height(16.dp)) }
+            }
+        }
+    }
+}
+
+@Composable
+fun AgendaEventCard(entry: TimetableEntry, onEdit: (TimetableEntry) -> Unit, onDelete: (TimetableEntry) -> Unit) {
+    val timeFormat = remember { DateTimeFormatter.ofPattern("h:mm a") }
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable { onEdit(entry) },
+        colors = CardDefaults.cardColors(
+            containerColor = if (entry.isRecurring) MaterialTheme.colorScheme.surfaceContainer else MaterialTheme.colorScheme.secondaryContainer
+        )
+    ) {
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(horizontalAlignment = Alignment.End, modifier = Modifier.width(75.dp)) {
+                Text(text = entry.startTime.format(timeFormat), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text(text = entry.endTime.format(timeFormat), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            VerticalDivider(modifier = Modifier.padding(horizontal = 12.dp).height(40.dp), color = MaterialTheme.colorScheme.primary)
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = entry.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                if (!entry.venue.isNullOrBlank()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.LocationOn, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.secondary)
+                        Text(text = entry.venue!!, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+                    }
                 }
-                item {
-                    Spacer(modifier = Modifier.height(16.dp))
+                if (!entry.details.isNullOrBlank()) {
+                    Text(text = entry.details!!, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+            }
+            IconButton(onClick = { onDelete(entry) }) {
+                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
             }
         }
     }
@@ -115,10 +133,7 @@ fun AgendaList(
 
 @Composable
 fun DayHeader(day: DayOfWeek, isToday: Boolean) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.padding(vertical = 8.dp)
-    ) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 8.dp)) {
         Text(
             text = day.getDisplayName(TextStyle.FULL, Locale.getDefault()),
             style = MaterialTheme.typography.titleLarge,
@@ -127,131 +142,58 @@ fun DayHeader(day: DayOfWeek, isToday: Boolean) {
         )
         if (isToday) {
             Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "TODAY",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier
-                    .background(MaterialTheme.colorScheme.primary, shape = MaterialTheme.shapes.small)
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
-            )
-        }
-    }
-}
-
-@Composable
-fun AgendaEventCard(entry: TimetableEntry) {
-    val timeFormat = remember { DateTimeFormatter.ofPattern("h:mm a") }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(16.dp)
-                .height(IntrinsicSize.Min) // Match height of children
-        ) {
-            // Time Column
-            Column(
-                horizontalAlignment = Alignment.End,
-                modifier = Modifier.width(70.dp)
-            ) {
-                Text(
-                    text = entry.startTime.format(timeFormat),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = entry.endTime.format(timeFormat),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            VerticalDivider(
-                modifier = Modifier
-                    .padding(horizontal = 12.dp)
-                    .fillMaxHeight(),
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            // Details Column
-            Column {
-                Text(
-                    text = entry.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-                if (!entry.venue.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.LocationOn, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.secondary)
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = entry.venue,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.secondary
-                        )
-                    }
-                }
-                if (!entry.details.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = entry.details,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+            Surface(color = MaterialTheme.colorScheme.primary, shape = MaterialTheme.shapes.small) {
+                Text(text = "TODAY", color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall)
             }
         }
     }
 }
 
-// --- ADD ENTRY DIALOG ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AddEntryDialog(onDismiss: () -> Unit, onSave: (title: String, day: DayOfWeek, startTime: LocalTime, endTime: LocalTime, venue: String?, details: String?) -> Unit) {
-    var title by remember { mutableStateOf("") }
-    var venue by remember { mutableStateOf("") }
-    var details by remember { mutableStateOf("") }
+private fun AddEditEntryDialog(
+    existingEntry: TimetableEntry?,
+    onDismiss: () -> Unit,
+    onSave: (Int, String, DayOfWeek, LocalTime, LocalTime, String?, String?, Boolean) -> Unit
+) {
+    var title by remember { mutableStateOf(existingEntry?.title ?: "") }
+    var venue by remember { mutableStateOf(existingEntry?.venue ?: "") }
+    var details by remember { mutableStateOf(existingEntry?.details ?: "") }
+    var isRecurring by remember { mutableStateOf(existingEntry?.isRecurring ?: true) }
+    var selectedDay by remember { mutableStateOf(existingEntry?.dayOfWeek ?: LocalDate.now().dayOfWeek) }
+    var startTime by remember { mutableStateOf(existingEntry?.startTime ?: LocalTime.of(9, 0)) }
+    var endTime by remember { mutableStateOf(existingEntry?.endTime ?: LocalTime.of(10, 0)) }
     var expanded by remember { mutableStateOf(false) }
-    var selectedDay by remember { mutableStateOf(LocalDate.now().dayOfWeek) }
-    var startTime by remember { mutableStateOf(LocalTime.of(9, 0)) }
-    var endTime by remember { mutableStateOf(LocalTime.of(10, 0)) }
+
     var showStartTimePicker by remember { mutableStateOf(false) }
     var showEndTimePicker by remember { mutableStateOf(false) }
     val timeFormatter = remember { DateTimeFormatter.ofPattern("h:mm a") }
 
-    if (showStartTimePicker) {
-        TimePickerDialog(onDismiss = { showStartTimePicker = false }, onConfirm = { newTime -> startTime = newTime }, initialTime = startTime)
-    }
-    if (showEndTimePicker) {
-        TimePickerDialog(onDismiss = { showEndTimePicker = false }, onConfirm = { newTime -> endTime = newTime }, initialTime = endTime)
-    }
+    if (showStartTimePicker) TimePickerDialog({ showStartTimePicker = false }, { startTime = it }, startTime)
+    if (showEndTimePicker) TimePickerDialog({ showEndTimePicker = false }, { endTime = it }, endTime)
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add Schedule Entry") },
+        title = { Text(if (existingEntry == null) "Add Entry" else "Edit Entry") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Event Title") }, singleLine = true)
-                OutlinedTextField(value = venue, onValueChange = { venue = it }, label = { Text("Venue (Optional)") }, singleLine = true)
-                OutlinedTextField(value = details, onValueChange = { details = it }, label = { Text("Details (Optional)") })
-                ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Title") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = venue, onValueChange = { venue = it }, label = { Text("Venue") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = details, onValueChange = { details = it }, label = { Text("Details") }, modifier = Modifier.fillMaxWidth())
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Weekly Recurring?", modifier = Modifier.weight(1f))
+                    Switch(checked = isRecurring, onCheckedChange = { isRecurring = it })
+                }
+                ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
                     OutlinedTextField(
                         value = selectedDay.getDisplayName(TextStyle.FULL, Locale.getDefault()),
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Day of Week") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                        onValueChange = {}, readOnly = true, label = { Text("Day") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+                        modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
                     )
                     ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                         DayOfWeek.entries.forEach { day ->
-                            DropdownMenuItem(text = { Text(day.getDisplayName(TextStyle.FULL, Locale.getDefault())) }, onClick = { selectedDay = day; expanded = false })
+                            DropdownMenuItem(text = { Text(day.name) }, onClick = { selectedDay = day; expanded = false })
                         }
                     }
                 }
@@ -262,9 +204,7 @@ private fun AddEntryDialog(onDismiss: () -> Unit, onSave: (title: String, day: D
             }
         },
         confirmButton = {
-            Button(onClick = {
-                if (title.isNotBlank()) onSave(title, selectedDay, startTime, endTime, venue, details)
-            }) { Text("Save") }
+            Button(onClick = { onSave(existingEntry?.id ?: 0, title, selectedDay, startTime, endTime, venue, details, isRecurring) }) { Text("Save") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
