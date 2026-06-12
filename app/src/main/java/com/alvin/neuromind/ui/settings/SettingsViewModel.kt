@@ -4,116 +4,111 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.alvin.neuromind.data.Difficulty
-import com.alvin.neuromind.data.Priority
-import com.alvin.neuromind.data.Task
-import com.alvin.neuromind.data.TaskRepository
-import com.alvin.neuromind.data.TimetableEntry
-import com.alvin.neuromind.data.preferences.ThemeSetting
-import com.alvin.neuromind.data.preferences.UserPreferencesRepository
+import com.alvin.neuromind.data.*
+import com.alvin.neuromind.data.preferences.*
 import com.alvin.neuromind.domain.NotificationHelper
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.LocalTime
 import kotlin.random.Random
 
 class SettingsViewModel(
-    private val userPreferencesRepository: UserPreferencesRepository,
-    private val taskRepository: TaskRepository
+    private val userPrefs: UserPreferencesRepository,
+    private val repository: TaskRepository
 ) : ViewModel() {
 
-    val themeSetting: StateFlow<ThemeSetting> = userPreferencesRepository.userTheme
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = ThemeSetting.SYSTEM
-        )
+    val themeSetting: StateFlow<ThemeSetting> = userPrefs.userTheme
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ThemeSetting.SYSTEM)
 
-    fun updateTheme(theme: ThemeSetting) {
-        viewModelScope.launch {
-            userPreferencesRepository.saveThemeSetting(theme)
-        }
+    fun updateTheme(theme: ThemeSetting) = viewModelScope.launch {
+        userPrefs.saveThemeSetting(theme)
     }
 
-    // --- RESET DATA ---
-    fun resetAppData() {
-        viewModelScope.launch {
-            val allTasks = taskRepository.allTasks.first()
-            allTasks.forEach { taskRepository.delete(it) }
-
-            val allEntries = taskRepository.allTimetableEntries.first()
-            allEntries.forEach { taskRepository.delete(it) }
-        }
+    fun resetAppData() = viewModelScope.launch {
+        repository.allTasks.first().forEach { repository.deleteTask(it) }
+        repository.allTimetableEntries.first().forEach { repository.deleteTimetableEntry(it) }
     }
 
-    // --- RANDOM DEMO DATA (BULK) ---
-    fun generateDemoData() {
-        viewModelScope.launch {
-            val subjects = listOf("Math", "Physics", "History", "Coding", "Biology", "Art", "Economics")
-            val types = listOf("Assignment", "Exam", "Reading", "Project", "Essay")
+    /**
+     * BULK GENERATION: Creates 20 diverse tasks across the next 10 days
+     * to test the Task List and Dashboard Priority logic.
+     */
+    fun generateDemoData() = viewModelScope.launch {
+        val subjects = listOf("Math", "Physics", "History", "Coding", "Biology", "Art", "Economics", "Law", "Music")
+        val types = listOf("Assignment", "Exam Prep", "Reading", "Project", "Essay", "Research", "Lab Report")
 
-            repeat(5) {
-                val randomSubject = subjects.random()
-                val randomType = types.random()
-                val randomDaysForward = Random.nextLong(0, 7)
+        repeat(20) { index ->
+            val randomSubject = subjects.random()
+            val randomType = types.random()
+            // Mix of Overdue, Today, and Upcoming tasks
+            val randomDaysOffset = Random.nextLong(-2, 10)
 
-                val task = Task(
-                    title = "$randomSubject $randomType",
-                    description = "Prepare for the upcoming $randomSubject session. Review chapter ${Random.nextInt(1, 10)}.",
-                    dueDate = System.currentTimeMillis() + (randomDaysForward * 86400000L),
-                    priority = Priority.entries.random(),
-                    difficulty = Difficulty.entries.random(),
-                    durationMinutes = Random.nextInt(30, 120)
-                )
-                taskRepository.insert(task)
-            }
-        }
-    }
-
-    // --- FULL WEEK TIMETABLE ---
-    fun generateBaseTimetable() {
-        viewModelScope.launch {
-            val entries = listOf(
-                // Monday
-                TimetableEntry(title = "Mobile App Dev", dayOfWeek = DayOfWeek.MONDAY, startTime = LocalTime.of(9, 0), endTime = LocalTime.of(11, 0), venue = "Lab 3", details = "Jetpack Compose"),
-                TimetableEntry(title = "Linear Algebra", dayOfWeek = DayOfWeek.MONDAY, startTime = LocalTime.of(13, 0), endTime = LocalTime.of(14, 30), venue = "Hall A", details = "Matrices"),
-                // Tuesday
-                TimetableEntry(title = "Gym", dayOfWeek = DayOfWeek.TUESDAY, startTime = LocalTime.of(7, 0), endTime = LocalTime.of(8, 30), venue = "Campus Gym", details = "Cardio"),
-                TimetableEntry(title = "Physics Lab", dayOfWeek = DayOfWeek.TUESDAY, startTime = LocalTime.of(10, 0), endTime = LocalTime.of(12, 0), venue = "Sci Block", details = "Optics"),
-                // Wednesday
-                TimetableEntry(title = "Database Systems", dayOfWeek = DayOfWeek.WEDNESDAY, startTime = LocalTime.of(10, 0), endTime = LocalTime.of(12, 0), venue = "Room 404", details = "SQL"),
-                // Thursday
-                TimetableEntry(title = "Web Development", dayOfWeek = DayOfWeek.THURSDAY, startTime = LocalTime.of(14, 0), endTime = LocalTime.of(16, 0), venue = "Lab 1", details = "React/Node"),
-                // Friday
-                TimetableEntry(title = "Project Meeting", dayOfWeek = DayOfWeek.FRIDAY, startTime = LocalTime.of(11, 0), endTime = LocalTime.of(12, 0), venue = "Library", details = "Group A")
+            val task = Task(
+                title = "$randomSubject $randomType",
+                description = "Automated test task #$index for $randomSubject. Review specific chapters.",
+                dueDate = System.currentTimeMillis() + (randomDaysOffset * 86400000L),
+                priority = Priority.entries.random(),
+                difficulty = Difficulty.entries.random(),
+                durationMinutes = Random.nextInt(30, 180)
             )
-            entries.forEach { taskRepository.insert(it) }
+            repository.insertTask(task)
         }
     }
 
-    // --- TEST NOTIFICATION ---
-    fun testNotification(context: Context) {
-        val helper = NotificationHelper(context)
-        helper.showNotification(
-            id = 999,
-            title = "Neuromind Test",
-            message = "If you see this, notifications are working!"
+    /**
+     * BULK GENERATION: Creates a full, busy 7-day academic schedule
+     * to test the Timetable Agenda view and AI gaps.
+     */
+    fun generateBaseTimetable() = viewModelScope.launch {
+        val scheduleData = listOf(
+            // Monday
+            Triple("Mobile App Dev", DayOfWeek.MONDAY, Pair(9, 11)),
+            Triple("Linear Algebra", DayOfWeek.MONDAY, Pair(13, 15)),
+            // Tuesday
+            Triple("Physics Lab", DayOfWeek.TUESDAY, Pair(10, 13)),
+            Triple("Gym Session", DayOfWeek.TUESDAY, Pair(17, 18)),
+            // Wednesday
+            Triple("Database Systems", DayOfWeek.WEDNESDAY, Pair(10, 12)),
+            Triple("Study Group", DayOfWeek.WEDNESDAY, Pair(14, 16)),
+            // Thursday
+            Triple("Web Development", DayOfWeek.THURSDAY, Pair(14, 16)),
+            Triple("History Lecture", DayOfWeek.THURSDAY, Pair(11, 12)),
+            // Friday
+            Triple("Project Meeting", DayOfWeek.FRIDAY, Pair(11, 13)),
+            Triple("Economics", DayOfWeek.FRIDAY, Pair(15, 17)),
+            // Weekend One-Time Events (Path A test)
+            Triple("Library Session", DayOfWeek.SATURDAY, Pair(10, 14)),
+            Triple("Laundry/Cleaning", DayOfWeek.SUNDAY, Pair(9, 11))
         )
+
+        scheduleData.forEach { (title, day, times) ->
+            repository.insertTimetableEntry(
+                TimetableEntry(
+                    title = title,
+                    dayOfWeek = day,
+                    startTime = LocalTime.of(times.first, 0),
+                    endTime = LocalTime.of(times.second, 0),
+                    venue = "Campus Building ${Random.nextInt(1, 5)}",
+                    isRecurring = true
+                )
+            )
+        }
+    }
+
+    fun testNotification(context: Context) {
+        NotificationHelper(context).showNotification(999, "Neuromind", "Notification system active!")
     }
 }
 
 class SettingsViewModelFactory(
-    private val userPreferencesRepository: UserPreferencesRepository,
-    private val taskRepository: TaskRepository
+    private val userPrefs: UserPreferencesRepository,
+    private val repository: TaskRepository
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(SettingsViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return SettingsViewModel(userPreferencesRepository, taskRepository) as T
+            return SettingsViewModel(userPrefs, repository) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }
