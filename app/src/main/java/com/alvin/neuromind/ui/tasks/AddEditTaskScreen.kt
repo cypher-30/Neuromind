@@ -5,10 +5,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.alvin.neuromind.data.Difficulty
@@ -25,7 +27,11 @@ fun AddEditTaskScreen(
     viewModel: AddEditTaskViewModel,
     onNavigateUp: () -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(uiState.isTaskSaved) {
+        if (uiState.isTaskSaved) onNavigateUp()
+    }
 
     // Dialog States
     var showDatePicker by remember { mutableStateOf(false) }
@@ -117,13 +123,14 @@ fun AddEditTaskScreen(
                 },
                 actions = {
                     IconButton(
-                        onClick = {
-                            viewModel.saveTask()
-                            onNavigateUp()
-                        },
-                        enabled = uiState.title.isNotBlank()
+                        onClick = { viewModel.saveTask() },
+                        enabled = uiState.title.isNotBlank() && !uiState.isTaskSaved
                     ) {
-                        Icon(Icons.Default.Check, contentDescription = "Save Task")
+                        if (uiState.isTaskSaved) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                        } else {
+                            Icon(Icons.Default.Check, contentDescription = "Save Task")
+                        }
                     }
                 }
             )
@@ -157,28 +164,31 @@ fun AddEditTaskScreen(
                 Text("Due Date & Time", style = MaterialTheme.typography.labelLarge)
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // Date Button
                     OutlinedButton(
                         onClick = { showDatePicker = true },
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(Icons.Default.DateRange, null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = uiState.dueDate?.let { dateFormat.format(Date(it)) } ?: "Set Date"
-                        )
+                        Text(uiState.dueDate?.let { dateFormat.format(Date(it)) } ?: "Set Date")
                     }
-
-                    // Time Button
                     OutlinedButton(
                         onClick = { showTimePicker = true },
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(Icons.Default.Schedule, null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = uiState.dueDate?.let { timeFormat.format(Date(it)) } ?: "Set Time"
-                        )
+                        Text(uiState.dueDate?.let { timeFormat.format(Date(it)) } ?: "Set Time")
+                    }
+                }
+                if (uiState.dueDate != null) {
+                    TextButton(
+                        onClick = { viewModel.onDueDateChange(null) },
+                        contentPadding = PaddingValues(horizontal = 4.dp)
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = "Clear date", modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Clear date", style = MaterialTheme.typography.labelMedium)
                     }
                 }
             }
