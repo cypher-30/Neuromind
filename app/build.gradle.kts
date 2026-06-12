@@ -13,8 +13,8 @@ android {
         applicationId = "com.alvin.neuromind"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
@@ -63,8 +63,10 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
 
-    // ViewModel
+    // ViewModel + lifecycle-aware state collection
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.compose.animation)
 
     // WorkManager (This was missing!)
     implementation(libs.androidx.work.runtime.ktx)
