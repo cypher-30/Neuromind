@@ -9,10 +9,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.SentimentSatisfiedAlt
 import androidx.compose.material3.*
+import androidx.compose.animation.core.EaseOut
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,7 +29,7 @@ import androidx.compose.ui.unit.dp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InsightsScreen(viewModel: InsightsViewModel) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Productivity Insights") }) }
@@ -66,7 +69,6 @@ fun InsightsScreen(viewModel: InsightsViewModel) {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text("Tasks Completed", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        // ADDED PADDING HERE to fix layout issues
                         Spacer(modifier = Modifier.height(24.dp))
 
                         if (uiState.completionData.isEmpty()) {
@@ -112,7 +114,6 @@ fun InsightsScreen(viewModel: InsightsViewModel) {
                                                 .background(if (count > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
                                         )
 
-                                        // ADDED SPACER between bar and text to prevent blocking
                                         Spacer(modifier = Modifier.height(12.dp))
 
                                         Text(
@@ -147,12 +148,18 @@ fun InsightsScreen(viewModel: InsightsViewModel) {
 
 @Composable
 fun WellnessCard(score: Int) {
+    val animatedScore by animateFloatAsState(
+        targetValue = score / 100f,
+        animationSpec = tween(durationMillis = 1000, easing = EaseOut),
+        label = "wellness_score"
+    )
+
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-        modifier = Modifier.fillMaxWidth().height(160.dp)
+        modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.fillMaxSize().padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -160,23 +167,38 @@ fun WellnessCard(score: Int) {
                 Text("Wellness Score", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    "Calculated from your daily logs.",
-                    style = MaterialTheme.typography.bodyMedium,
+                    "Based on your recent logs",
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                 )
+                Spacer(modifier = Modifier.height(12.dp))
+                LinearProgressIndicator(
+                    progress = { animatedScore },
+                    modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    "$score%",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
             }
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(100.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.background)
-            ) {
+            Spacer(modifier = Modifier.width(16.dp))
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(80.dp)) {
+                CircularProgressIndicator(
+                    progress = { animatedScore },
+                    modifier = Modifier.fillMaxSize(),
+                    strokeWidth = 6.dp,
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f)
+                )
                 Text(
                     text = "$score%",
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.primary
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             }
         }
