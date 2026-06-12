@@ -1,203 +1,112 @@
 package com.alvin.neuromind.ui.feedback
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Bolt
-import androidx.compose.material.icons.filled.SentimentSatisfiedAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.alvin.neuromind.data.FeedbackLog
 import com.alvin.neuromind.data.Mood
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun FeedbackScreen(
     viewModel: FeedbackViewModel,
     onFeedbackSubmitted: () -> Unit,
     onNavigateBack: () -> Unit
 ) {
-    var selectedMood by remember { mutableStateOf<Mood?>(null) }
+    var selectedMood by remember { mutableStateOf(Mood.NEUTRAL) }
     var energyLevel by remember { mutableFloatStateOf(3f) }
+    var tasksCompleted by remember { mutableStateOf("") }
     var comment by remember { mutableStateOf("") }
+    var isSubmitting by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Daily Reflection") },
+                title = { Text("Daily Review") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
+                }
             )
         }
-    ) { innerPadding ->
+    ) { padding ->
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(20.dp), // Increased outer padding
-            verticalArrangement = Arrangement.spacedBy(32.dp) // More breathing room between sections
+                .padding(padding)
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // Header Text
-            Text(
-                "Let's wrap up the day.",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
+            Text("How are you feeling?", style = MaterialTheme.typography.titleMedium)
+
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Mood.entries.forEach { mood ->
+                    FilterChip(
+                        selected = selectedMood == mood,
+                        onClick = { selectedMood = mood },
+                        label = { Text(mood.name.lowercase().replaceFirstChar { it.uppercase() }) }
+                    )
+                }
+            }
+
+            Text("Energy Level: ${energyLevel.toInt()}/5", style = MaterialTheme.typography.titleMedium)
+            Slider(value = energyLevel, onValueChange = { energyLevel = it }, valueRange = 1f..5f, steps = 3)
+
+            OutlinedTextField(
+                value = tasksCompleted,
+                onValueChange = { tasksCompleted = it },
+                label = { Text("Tasks Completed Today") },
+                modifier = Modifier.fillMaxWidth()
             )
 
-            // 1. MOOD SECTION
-            Column {
-                SectionLabel("How are you feeling?", Icons.Default.SentimentSatisfiedAlt)
-                Spacer(Modifier.height(16.dp))
+            OutlinedTextField(
+                value = comment,
+                onValueChange = { comment = it },
+                label = { Text("Additional Thoughts") },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 3
+            )
 
-                // Custom Emoji-like Selector
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Mood.entries.forEach { mood ->
-                        MoodItem(
-                            mood = mood,
-                            isSelected = selectedMood == mood,
-                            onSelect = { selectedMood = mood }
-                        )
-                    }
-                }
-            }
-
-            // 2. ENERGY SECTION
-            Column {
-                SectionLabel("Energy Level", Icons.Default.Bolt)
-                Spacer(Modifier.height(16.dp))
-
-                Card(
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                ) {
-                    Column(modifier = Modifier.padding(20.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("Drained", style = MaterialTheme.typography.bodyMedium)
-                            Text(
-                                text = "${energyLevel.toInt()}/5",
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Text("Charged", style = MaterialTheme.typography.bodyMedium)
-                        }
-                        Slider(
-                            value = energyLevel,
-                            onValueChange = { energyLevel = it },
-                            valueRange = 1f..5f,
-                            steps = 3,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        )
-                    }
-                }
-            }
-
-            // 3. NOTES SECTION
-            Column {
-                SectionLabel("Quick Notes", null)
-                Spacer(Modifier.height(12.dp))
-                OutlinedTextField(
-                    value = comment,
-                    onValueChange = { comment = it },
-                    placeholder = { Text("What went well? Any blockers?") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(140.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surface,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surface
-                    )
-                )
-            }
-
-            // SUBMIT BUTTON
             Button(
                 onClick = {
-                    if (selectedMood != null) {
-                        viewModel.submitFeedback(selectedMood!!, energyLevel.toInt(), 0, comment)
+                    if (!isSubmitting) {
+                        isSubmitting = true
+                        val log = FeedbackLog(
+                            mood = selectedMood,
+                            energyLevel = energyLevel.toInt(),
+                            tasksCompleted = tasksCompleted.toIntOrNull() ?: 0,
+                            comment = comment.takeIf { it.isNotBlank() }
+                        )
+                        viewModel.submitFeedback(log)
                         onFeedbackSubmitted()
                     }
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(16.dp),
-                enabled = selectedMood != null
+                enabled = !isSubmitting,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Save Check-in", fontSize = 18.sp)
+                if (isSubmitting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                } else {
+                    Text("Submit Review")
+                }
             }
-
-            Spacer(Modifier.height(24.dp)) // Bottom padding
         }
-    }
-}
-
-@Composable
-fun SectionLabel(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector?) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        if (icon != null) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
-            Spacer(Modifier.width(8.dp))
-        }
-        Text(text, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-    }
-}
-
-@Composable
-fun MoodItem(mood: Mood, isSelected: Boolean, onSelect: () -> Unit) {
-    val backgroundColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer
-
-    // Fix: Explicitly handle the click without relying on implicit Indication
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(backgroundColor)
-            .clickable(onClick = onSelect) // Moved clickable AFTER background
-            .padding(12.dp)
-    ) {
-        Text(
-            text = when(mood) {
-                Mood.GREAT -> "🤩"
-                Mood.GOOD -> "🙂"
-                Mood.NEUTRAL -> "😐"
-                Mood.TIRED -> "😴"
-                Mood.STRESSED -> "😫"
-            },
-            fontSize = 32.sp
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = mood.name.lowercase().replaceFirstChar { it.uppercase() },
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-        )
     }
 }
