@@ -3,17 +3,14 @@ package com.alvin.neuromind.domain
 import com.alvin.neuromind.data.Task
 import com.alvin.neuromind.data.TimetableEntry
 import java.time.LocalDate
-import java.time.LocalDateTime
 import java.time.LocalTime
-import java.time.ZoneId
 
-data class TimeSlot(
-    val start: LocalTime,
-    val end: LocalTime
-)
+data class TimeSlot(val start: LocalTime, val end: LocalTime)
 
 class Scheduler {
-
+    /**
+     * Generates a plan by finding gaps in the timetable for a specific date[cite: 137, 149].
+     */
     fun generateSchedule(
         tasks: List<Task>,
         timetable: List<TimetableEntry>,
@@ -21,45 +18,46 @@ class Scheduler {
     ): Map<TimeSlot, Task> {
         val schedule = mutableMapOf<TimeSlot, Task>()
 
-        // 1. Filter tasks that are relevant (not completed)
+        // 1. Filter and sort tasks by priority[cite: 1114, 1115].
         val todoTasks = tasks.filter { !it.isCompleted }
-            .sortedByDescending { it.priority } // High priority first
+            .sortedByDescending { it.priority }
 
-        // 2. Simple blocking: Schedule tasks in free time slots
-        // This is a simplified logic to get it compiling and running.
-        // It assumes a 9-5 work day for simplicity in this version.
-
-        var currentTime = LocalTime.of(9, 0)
-        val dayEnd = LocalTime.of(17, 0)
+        var currentTime = LocalTime.of(8, 0) // Start of work day[cite: 1092].
+        val dayEnd = LocalTime.of(22, 0)     // End of work day[cite: 1093].
 
         for (task in todoTasks) {
             if (currentTime.isAfter(dayEnd)) break
 
-            val taskDuration = 60L // Assume 1 hour per task for now
+            val taskDuration = task.durationMinutes.toLong()
             val endTime = currentTime.plusMinutes(taskDuration)
 
-            // Check if this slots overlaps with any fixed class/event
-            val isBlocked = timetable.any { entry ->
-                // Check if entry is for today
-                if (entry.dayOfWeek == date.dayOfWeek) {
-                    val entryStart = entry.startTime
-                    val entryEnd = entry.endTime
-                    // Simple overlap check
-                    currentTime.isBefore(entryEnd) && endTime.isAfter(entryStart)
+            // 2. CHECK FOR CONFLICTS[cite: 1098, 1143].
+            // Logic: Is there a class today OR a one-time event on this specific date?
+            val conflict = timetable.find { entry ->
+                val isRelevantToThisDate = if (entry.isRecurring) {
+                    // It's a weekly class: does the Day of Week match?.
+                    entry.dayOfWeek == date.dayOfWeek
                 } else {
-                    false
+                    // It's a one-time event: does the exact Date match?.
+                    entry.date == date
                 }
+
+                // Does the time overlap with our proposed task slot?[cite: 1102, 1144].
+                isRelevantToThisDate && currentTime.isBefore(entry.endTime) && endTime.isAfter(entry.startTime)
             }
 
-            if (!isBlocked && endTime.isBefore(dayEnd)) {
+            if (conflict == null && endTime.isBefore(dayEnd)) {
+                // Success: No class or appointment[cite: 1119, 1121].
                 schedule[TimeSlot(currentTime, endTime)] = task
-                currentTime = endTime.plusMinutes(15) // 15 min break
+                currentTime = endTime.plusMinutes(15) // 15-minute buffer/break[cite: 1100, 1104].
+            } else if (conflict != null) {
+                // Conflict: The AI "jumps" to the end of the class/event[cite: 1106, 1124].
+                currentTime = conflict.endTime.plusMinutes(5)
             } else {
-                // If blocked, just skip 30 mins and try again (naive algorithm)
-                currentTime = currentTime.plusMinutes(30)
+                // Day is too full for this specific task
+                currentTime = currentTime.plusMinutes(15)
             }
         }
-
         return schedule
     }
 }
