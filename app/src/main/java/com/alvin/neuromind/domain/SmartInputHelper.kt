@@ -1,19 +1,15 @@
-package com.alvin.neuromind.ui
+package com.alvin.neuromind.domain
 
 object SmartInputHelper {
-    /**
-     * Parses a string like "Remind me to Study Math tomorrow at 5pm"
-     */
-    fun parseInput(input: String): PartialTask {
+    fun parseInput(input: String): ParsedTask {
         val lower = input.lowercase()
         val title = input.replace(Regex("(?i)remind me to |tomorrow|at \\d+pm"), "").trim()
 
-        // Very basic logic for "tomorrow"
         val date = if (lower.contains("tomorrow")) {
             System.currentTimeMillis() + 86400000
         } else null
 
-        return PartialTask(title = title, dueDate = date)
+        return ParsedTask(title = if (title.isEmpty()) "New Task" else title, dueDate = date)
     }
 }
-data class PartialTask(val title: String, val dueDate: Long?)
+data class ParsedTask(val title: String, val dueDate: Long?)
