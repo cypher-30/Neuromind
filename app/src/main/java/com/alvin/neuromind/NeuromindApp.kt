@@ -96,7 +96,7 @@ fun NeuromindApp(
                     popExitTransition = { slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(300)) }
                 ) {
                     composable(route = Screen.Dashboard.route) {
-                        val factory = DashboardViewModelFactory(repository, scheduler)
+                        val factory = DashboardViewModelFactory(repository, scheduler, userPreferencesRepository)
                         val vm = viewModel<DashboardViewModel>(factory = factory)
                         DashboardScreen(
                             viewModel = vm,
@@ -120,6 +120,9 @@ fun NeuromindApp(
                             onAddTaskClicked = { navController.navigate(Screen.AddEditTask.route) },
                             onEditTaskClicked = { task ->
                                 navController.navigate(Screen.AddEditTask.route + "?taskId=${task.id}")
+                            },
+                            onFocusTaskClicked = { task ->
+                                navController.navigate(Screen.FocusMode.route + "/${task.id}")
                             }
                         )
                     }

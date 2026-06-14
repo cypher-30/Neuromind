@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.alvin.neuromind.data.Task
 import com.alvin.neuromind.data.TaskRepository
+import com.alvin.neuromind.domain.SmartInputHelper
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -43,6 +44,16 @@ class TaskViewModel(private val repository: TaskRepository) : ViewModel() {
 
     fun deleteTask(task: Task) = viewModelScope.launch {
         repository.deleteTask(task)
+    }
+
+    fun quickAddTask(input: String) = viewModelScope.launch {
+        if (input.isBlank()) return@launch
+        val parsed = SmartInputHelper.parseInput(input)
+        val task = Task(
+            title = parsed.title,
+            dueDate = parsed.dueDate
+        )
+        repository.insertTask(task)
     }
 
     private fun isSameDay(millis: Long, date: LocalDate): Boolean =

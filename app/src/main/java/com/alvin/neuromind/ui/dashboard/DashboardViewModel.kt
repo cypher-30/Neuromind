@@ -6,6 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.alvin.neuromind.data.Task
 import com.alvin.neuromind.data.TaskRepository
 import com.alvin.neuromind.data.TimetableEntry
+import com.alvin.neuromind.data.preferences.UserPreferencesRepository
+import com.alvin.neuromind.domain.BurnoutAnalyzer
+import com.alvin.neuromind.domain.BurnoutState
 import com.alvin.neuromind.domain.Scheduler
 import com.alvin.neuromind.domain.TimeSlot
 import kotlinx.coroutines.flow.SharingStarted
@@ -24,38 +27,39 @@ data class DashboardUiState(
     val priorityTasks: List<Task> = emptyList(),
     val upcomingEvents: List<TimetableEntry> = emptyList(),
     val todaysPlan: Map<TimeSlot, Task> = emptyMap(),
+    val burnoutState: BurnoutState? = null,
     val isLoading: Boolean = true
 )
 
 class DashboardViewModel(
     private val repository: TaskRepository,
-    private val scheduler: Scheduler
+    private val scheduler: Scheduler,
+    private val userPrefs: UserPreferencesRepository
 ) : ViewModel() {
 
     val uiState: StateFlow<DashboardUiState> = combine(
         repository.allTasks,
-        repository.allTimetableEntries
-    ) { tasks, timetable ->
+        repository.allTimetableEntries,
+        repository.allFeedbackLogs,
+        userPrefs.cognitiveProfile
+    ) { tasks, timetable, feedbackLogs, profile ->
 
-        // 1. Calculate Stats
         val pendingCount = tasks.count { !it.isCompleted }
         val completedCount = tasks.count { it.isCompleted }
 
-        // 2. Get Priority Tasks (High Priority or Overdue)
         val priorityList = tasks.filter { !it.isCompleted }
-            .sortedByDescending { it.priority } // High priority first
+            .sortedByDescending { it.priority }
             .take(3)
 
-        // 3. Get Upcoming Events (Today)
         val today = LocalDate.now()
         val nowTime = LocalTime.now()
         val eventsToday = timetable.filter { it.dayOfWeek == today.dayOfWeek }
-            .filter { it.startTime.isAfter(nowTime) } // Only future events today
+            .filter { it.startTime.isAfter(nowTime) }
             .sortedBy { it.startTime }
             .take(3)
 
-        // 4. Generate AI Plan (Using the new Scheduler)
-        val plan = scheduler.generateSchedule(tasks, timetable)
+        val plan = scheduler.generateSchedule(tasks, timetable, profile = profile)
+        val burnout = BurnoutAnalyzer.analyze(feedbackLogs)
 
         DashboardUiState(
             greeting = getGreeting(),
@@ -65,6 +69,7 @@ class DashboardViewModel(
             priorityTasks = priorityList,
             upcomingEvents = eventsToday,
             todaysPlan = plan,
+            burnoutState = burnout,
             isLoading = false
         )
     }.stateIn(
@@ -85,12 +90,13 @@ class DashboardViewModel(
 
 class DashboardViewModelFactory(
     private val repository: TaskRepository,
-    private val scheduler: Scheduler
+    private val scheduler: Scheduler,
+    private val userPrefs: UserPreferencesRepository
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(DashboardViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return DashboardViewModel(repository, scheduler) as T
+            return DashboardViewModel(repository, scheduler, userPrefs) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

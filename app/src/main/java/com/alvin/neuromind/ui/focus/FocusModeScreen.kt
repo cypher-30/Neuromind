@@ -1,16 +1,25 @@
 package com.alvin.neuromind.ui.focus
 
+import android.app.NotificationManager
+import android.content.Context
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.alvin.neuromind.data.Task
@@ -20,10 +29,31 @@ private enum class TimerState { Idle, Running, Paused }
 
 @Composable
 fun FocusModeScreen(task: Task, onFinish: () -> Unit) {
-    val totalSeconds = 25 * 60
-    var secondsLeft by rememberSaveable { mutableIntStateOf(totalSeconds) }
+    val context = LocalContext.current
+    var sessionMinutes by rememberSaveable { mutableIntStateOf(25) }
+    var secondsLeft by rememberSaveable { mutableIntStateOf(sessionMinutes * 60) }
     var timerState by rememberSaveable { mutableStateOf(TimerState.Idle) }
     var showDoneDialog by remember { mutableStateOf(false) }
+
+    val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+    // DND Integration
+    DisposableEffect(timerState) {
+        if (timerState == TimerState.Running) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && notificationManager.isNotificationPolicyAccessGranted) {
+                notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_PRIORITY)
+            }
+        } else {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && notificationManager.isNotificationPolicyAccessGranted) {
+                notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL)
+            }
+        }
+        onDispose {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && notificationManager.isNotificationPolicyAccessGranted) {
+                notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL)
+            }
+        }
+    }
 
     LaunchedEffect(timerState) {
         if (timerState == TimerState.Running) {
@@ -33,6 +63,7 @@ fun FocusModeScreen(task: Task, onFinish: () -> Unit) {
             }
             timerState = TimerState.Idle
             showDoneDialog = true
+            triggerAlert(context)
         }
     }
 
@@ -46,14 +77,15 @@ fun FocusModeScreen(task: Task, onFinish: () -> Unit) {
             },
             dismissButton = {
                 TextButton(onClick = {
-                    secondsLeft = totalSeconds
+                    secondsLeft = sessionMinutes * 60
                     showDoneDialog = false
                 }) { Text("Another round") }
             }
         )
     }
 
-    val progress = secondsLeft.toFloat() / totalSeconds.toFloat()
+    val totalSeconds = sessionMinutes * 60
+    val progress = if (totalSeconds > 0) secondsLeft.toFloat() / totalSeconds.toFloat() else 0f
     val minutes = secondsLeft / 60
     val seconds = secondsLeft % 60
 
@@ -108,13 +140,26 @@ fun FocusModeScreen(task: Task, onFinish: () -> Unit) {
                 }
             }
 
+            // Duration Adjuster (only when Idle/Ready)
+            if (timerState == TimerState.Idle && secondsLeft == totalSeconds) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    IconButton(onClick = { if (sessionMinutes > 5) sessionMinutes -= 5; secondsLeft = sessionMinutes * 60 }) {
+                        Icon(Icons.Default.Remove, contentDescription = "Decrease time")
+                    }
+                    Text("${sessionMinutes} min", style = MaterialTheme.typography.titleMedium)
+                    IconButton(onClick = { if (sessionMinutes < 120) sessionMinutes += 5; secondsLeft = sessionMinutes * 60 }) {
+                        Icon(Icons.Default.Add, contentDescription = "Increase time")
+                    }
+                }
+            }
+
             // Controls
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (secondsLeft < totalSeconds) {
                     OutlinedButton(
                         onClick = {
                             timerState = TimerState.Idle
-                            secondsLeft = totalSeconds
+                            secondsLeft = sessionMinutes * 60
                         }
                     ) {
                         Icon(Icons.Default.Refresh, contentDescription = "Reset", modifier = Modifier.size(18.dp))
@@ -147,6 +192,42 @@ fun FocusModeScreen(task: Task, onFinish: () -> Unit) {
             }
 
             TextButton(onClick = onFinish) { Text("End Session") }
+            
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !notificationManager.isNotificationPolicyAccessGranted) {
+                Text(
+                    text = "DND mode requires permission in Settings",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
         }
+    }
+}
+
+private fun triggerAlert(context: Context) {
+    // Vibration
+    val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+        vibratorManager.defaultVibrator
+    } else {
+        @Suppress("DEPRECATION")
+        context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+    }
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        vibrator.vibrate(VibrationEffect.createOneShot(1000, VibrationEffect.DEFAULT_AMPLITUDE))
+    } else {
+        @Suppress("DEPRECATION")
+        vibrator.vibrate(1000)
+    }
+
+    // Sound - using Notification default
+    try {
+        val notification = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION)
+        val r = android.media.RingtoneManager.getRingtone(context, notification)
+        r.play()
+    } catch (e: Exception) {
+        e.printStackTrace()
     }
 }

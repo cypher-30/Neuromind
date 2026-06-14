@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
+import com.alvin.neuromind.data.FeedbackLog
 import com.alvin.neuromind.data.Mood
 import com.alvin.neuromind.data.TaskRepository
 import kotlinx.coroutines.flow.SharingStarted
@@ -21,6 +22,7 @@ data class InsightsUiState(
     val averageMood: String = "N/A",
     val averageEnergy: Int = 0,
     val wellnessScore: Float = 0.0f,
+    val recentNotes: List<FeedbackLog> = emptyList(),
     val isLoading: Boolean = true
 )
 
@@ -31,14 +33,13 @@ class InsightsViewModel(private val repository: TaskRepository) : ViewModel() {
         repository.allFeedbackLogs
     ) { tasks, feedbackLogs ->
 
-        // 1. Weekly Completion Logic
+        // Weekly completion chart
         val today = LocalDate.now()
         val weekDays = (0..6).map { today.minusDays((6 - it).toLong()) }
 
         val completionsByDay = weekDays.map { day ->
             val dayLabel = day.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault())
             val count = tasks.count { task ->
-                // FIXED: Used 'createdAt' instead of 'updatedAt'
                 val taskDate = Instant.ofEpochMilli(task.createdAt)
                     .atZone(ZoneId.systemDefault())
                     .toLocalDate()
@@ -47,7 +48,7 @@ class InsightsViewModel(private val repository: TaskRepository) : ViewModel() {
             dayLabel to count
         }
 
-        // 2. Averages & Wellness Score
+        // Wellness score — max 10 per log (mood max 5 + energy max 5)
         val recentFeedback = feedbackLogs.take(14)
         val wellnessScore: Float
         val avgMoodStr: String
@@ -59,7 +60,7 @@ class InsightsViewModel(private val repository: TaskRepository) : ViewModel() {
             avgEnergy = 0
         } else {
             val totalScore = recentFeedback.sumOf { it.mood.score + it.energyLevel }
-            val maxPossibleScore = recentFeedback.size * 15
+            val maxPossibleScore = recentFeedback.size * 10
             wellnessScore = (totalScore.toFloat() / maxPossibleScore.toFloat()).coerceIn(0f, 1f)
 
             avgEnergy = (recentFeedback.sumOf { it.energyLevel } / recentFeedback.size)
@@ -70,11 +71,15 @@ class InsightsViewModel(private val repository: TaskRepository) : ViewModel() {
                 ?.name?.lowercase()?.replaceFirstChar { it.uppercase() } ?: "Neutral"
         }
 
+        // Recent journal notes (non-blank comments, newest first, capped at 5)
+        val recentNotes = feedbackLogs.filter { !it.comment.isNullOrBlank() }.take(5)
+
         InsightsUiState(
             completionData = completionsByDay,
             averageMood = avgMoodStr,
             averageEnergy = avgEnergy,
             wellnessScore = wellnessScore,
+            recentNotes = recentNotes,
             isLoading = false
         )
     }.stateIn(

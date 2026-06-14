@@ -21,8 +21,36 @@ class SettingsViewModel(
     val themeSetting: StateFlow<ThemeSetting> = userPrefs.userTheme
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ThemeSetting.SYSTEM)
 
+    val peakStartHour: StateFlow<Int> = userPrefs.peakStartHour
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 8)
+
+    val peakEndHour: StateFlow<Int> = userPrefs.peakEndHour
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 11)
+
+    val preferredSessionLength: StateFlow<Int> = userPrefs.focusDuration
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 25)
+
+    val taskStyle: StateFlow<TaskStyle> = userPrefs.taskStyle
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TaskStyle.BALANCED)
+
     fun updateTheme(theme: ThemeSetting) = viewModelScope.launch {
         userPrefs.saveThemeSetting(theme)
+    }
+
+    fun updatePeakStartHour(hour: Int) = viewModelScope.launch {
+        userPrefs.savePeakStartHour(hour)
+    }
+
+    fun updatePeakEndHour(hour: Int) = viewModelScope.launch {
+        userPrefs.savePeakEndHour(hour)
+    }
+
+    fun updateSessionLength(minutes: Int) = viewModelScope.launch {
+        userPrefs.saveFocusDuration(minutes)
+    }
+
+    fun updateTaskStyle(style: TaskStyle) = viewModelScope.launch {
+        userPrefs.saveTaskStyle(style)
     }
 
     fun resetAppData() = viewModelScope.launch {
@@ -41,7 +69,6 @@ class SettingsViewModel(
         repeat(20) { index ->
             val randomSubject = subjects.random()
             val randomType = types.random()
-            // Mix of Overdue, Today, and Upcoming tasks
             val randomDaysOffset = Random.nextLong(-2, 10)
 
             val task = Task(

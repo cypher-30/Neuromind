@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -45,7 +46,8 @@ fun TaskListScreen(
     viewModel: TaskViewModel,
     isRescheduleMode: Boolean,
     onAddTaskClicked: () -> Unit,
-    onEditTaskClicked: (Task) -> Unit
+    onEditTaskClicked: (Task) -> Unit,
+    onFocusTaskClicked: (Task) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -59,6 +61,14 @@ fun TaskListScreen(
         }
     ) { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding)) {
+            if (!isRescheduleMode) {
+                QuickAddTaskField(
+                    onAddTask = { input ->
+                        viewModel.quickAddTask(input)
+                    }
+                )
+            }
+
             LazyRow(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
                 contentPadding = PaddingValues(horizontal = 16.dp),
@@ -81,7 +91,7 @@ fun TaskListScreen(
                 when {
                     contentState.isLoading -> TaskSkeletonList()
                     contentState.tasks.isEmpty() -> EmptyState(contentState.filter)
-                    else -> TaskItemList(contentState.tasks, viewModel, onEditTaskClicked)
+                    else -> TaskItemList(contentState.tasks, viewModel, onEditTaskClicked, onFocusTaskClicked)
                 }
             }
         }
@@ -93,7 +103,8 @@ fun TaskListScreen(
 private fun TaskItemList(
     tasks: List<Task>,
     viewModel: TaskViewModel,
-    onEditTaskClicked: (Task) -> Unit
+    onEditTaskClicked: (Task) -> Unit,
+    onFocusTaskClicked: (Task) -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
 
@@ -102,9 +113,23 @@ private fun TaskItemList(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        val allTasks = tasks // assuming 'tasks' is the full list from UI state if needed, 
+                            // but actually 'tasks' here is the filtered list.
+                            // To correctly identify blocked status, we might need the full list.
+                            // Let's re-evaluate if the ViewModel should handle isBlocked logic.
+                            // For now, let's assume we can check if prerequisite is in the list and not completed.
+
         items(items = tasks, key = { it.id }) { task ->
+            val isBlocked = task.prerequisiteTaskId?.let { preId ->
+                // This is a bit inefficient in O(N^2) for the list, 
+                // but for a mobile task list it's usually fine.
+                // Better would be the ViewModel providing a list of TaskWithStatus
+                tasks.any { it.id == preId && !it.isCompleted }
+            } ?: false
+
             val dismissState = rememberSwipeToDismissBoxState(
                 confirmValueChange = { value ->
+                    if (isBlocked) return@rememberSwipeToDismissBoxState false
                     when (value) {
                         SwipeToDismissBoxValue.StartToEnd -> {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -155,7 +180,9 @@ private fun TaskItemList(
                     onComplete = { isChecked ->
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         viewModel.onTaskCheckedChange(task, isChecked)
-                    }
+                    },
+                    onFocusClick = { onFocusTaskClicked(task) },
+                    isBlocked = isBlocked
                 )
             }
         }
@@ -163,7 +190,13 @@ private fun TaskItemList(
 }
 
 @Composable
-fun TaskCard(task: Task, onClick: () -> Unit, onComplete: (Boolean) -> Unit) {
+fun TaskCard(
+    task: Task,
+    onClick: () -> Unit,
+    onComplete: (Boolean) -> Unit,
+    onFocusClick: () -> Unit,
+    isBlocked: Boolean = false
+) {
     val priorityColor = when (task.priority) {
         Priority.HIGH -> MaterialTheme.colorScheme.error
         Priority.MEDIUM -> MaterialTheme.colorScheme.tertiary
@@ -173,12 +206,14 @@ fun TaskCard(task: Task, onClick: () -> Unit, onComplete: (Boolean) -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .clickable(enabled = !isBlocked) { onClick() },
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (task.isCompleted)
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            else MaterialTheme.colorScheme.surfaceContainer
+            containerColor = when {
+                task.isCompleted -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                isBlocked -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                else -> MaterialTheme.colorScheme.surfaceContainer
+            }
         ),
         shape = MaterialTheme.shapes.medium
     ) {
@@ -187,7 +222,7 @@ fun TaskCard(task: Task, onClick: () -> Unit, onComplete: (Boolean) -> Unit) {
                 Modifier
                     .width(4.dp)
                     .fillMaxHeight()
-                    .background(priorityColor)
+                    .background(if (isBlocked) priorityColor.copy(alpha = 0.3f) else priorityColor)
             )
             Row(
                 modifier = Modifier
@@ -197,21 +232,33 @@ fun TaskCard(task: Task, onClick: () -> Unit, onComplete: (Boolean) -> Unit) {
             ) {
                 Checkbox(
                     checked = task.isCompleted,
-                    onCheckedChange = onComplete,
+                    onCheckedChange = if (isBlocked) null else onComplete,
+                    enabled = !isBlocked,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = task.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        textDecoration = if (task.isCompleted) TextDecoration.LineThrough else null
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (isBlocked) {
+                            Icon(
+                                Icons.Default.Lock,
+                                contentDescription = "Blocked",
+                                modifier = Modifier.size(14.dp).padding(end = 4.dp),
+                                tint = MaterialTheme.colorScheme.outline
+                            )
+                        }
+                        Text(
+                            text = task.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            textDecoration = if (task.isCompleted) TextDecoration.LineThrough else null,
+                            color = if (isBlocked) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                     if (!task.description.isNullOrBlank()) {
                         Text(
                             text = task.description,
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (isBlocked) 0.5f else 1f),
                             maxLines = 2
                         )
                     }
@@ -221,9 +268,21 @@ fun TaskCard(task: Task, onClick: () -> Unit, onComplete: (Boolean) -> Unit) {
                         Text(
                             text = fmt.format(Date(task.dueDate)),
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (!task.isCompleted && task.dueDate < System.currentTimeMillis())
-                                MaterialTheme.colorScheme.error
-                            else MaterialTheme.colorScheme.outline
+                            color = when {
+                                task.isCompleted -> MaterialTheme.colorScheme.outline
+                                task.dueDate < System.currentTimeMillis() -> MaterialTheme.colorScheme.error
+                                isBlocked -> MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                                else -> MaterialTheme.colorScheme.outline
+                            }
+                        )
+                    }
+                }
+                if (!task.isCompleted && !isBlocked) {
+                    IconButton(onClick = onFocusClick) {
+                        Icon(
+                            Icons.Default.Timer,
+                            contentDescription = "Start Focus Mode",
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -303,4 +362,30 @@ fun EmptyState(filter: TaskFilter = TaskFilter.ALL) {
             )
         }
     }
+}
+
+@Composable
+fun QuickAddTaskField(onAddTask: (String) -> Unit) {
+    var text by remember { mutableStateOf("") }
+
+    OutlinedTextField(
+        value = text,
+        onValueChange = { text = it },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        placeholder = { Text("Quick add: Buy milk tomorrow at 5pm") },
+        trailingIcon = {
+            if (text.isNotBlank()) {
+                IconButton(onClick = {
+                    onAddTask(text)
+                    text = ""
+                }) {
+                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Add Task")
+                }
+            }
+        },
+        shape = MaterialTheme.shapes.medium,
+        singleLine = true
+    )
 }

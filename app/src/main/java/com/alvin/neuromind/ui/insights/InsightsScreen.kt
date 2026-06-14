@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Notes
 import androidx.compose.material.icons.filled.SentimentSatisfiedAlt
 import androidx.compose.material3.*
 import androidx.compose.animation.core.EaseOut
@@ -25,6 +26,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,7 +60,7 @@ fun InsightsScreen(viewModel: InsightsViewModel) {
                     )
                     StatCard(
                         label = "Avg Energy",
-                        value = "${uiState.averageEnergy}/10",
+                        value = "${uiState.averageEnergy}/5",
                         icon = Icons.Default.Bolt,
                         color = MaterialTheme.colorScheme.secondaryContainer,
                         modifier = Modifier.weight(1f)
@@ -130,15 +134,59 @@ fun InsightsScreen(viewModel: InsightsViewModel) {
                 }
             }
 
-            // 4. Recent Reflections Section
+            // 4. Recent Journal Entries
             item {
-                Text("Recent Journal Entries", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
+                Text(
+                    "Recent Journal Entries",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
             }
-            item {
-                Card {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Check the 'Feedback' logs in database to see history.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        // This serves as a placeholder until we wire up feedback log reading
+            if (uiState.recentNotes.isEmpty()) {
+                item {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            "No journal entries yet. Add thoughts in your End-of-Day Review.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
+                }
+            } else {
+                item {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column {
+                            val dateFormat = remember { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()) }
+                            uiState.recentNotes.forEachIndexed { index, note ->
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Notes,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(16.dp).padding(top = 2.dp)
+                                    )
+                                    Column {
+                                        Text(
+                                            note.comment ?: "",
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            dateFormat.format(Date(note.date)),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                                if (index < uiState.recentNotes.lastIndex) {
+                                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                                }
+                            }
+                        }
                     }
                 }
             }

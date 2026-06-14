@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.alvin.neuromind.data.Task
 import com.alvin.neuromind.data.TimetableEntry
+import com.alvin.neuromind.domain.BurnoutState
 import com.alvin.neuromind.domain.TimeSlot
 import java.text.SimpleDateFormat
 import java.time.format.DateTimeFormatter
@@ -79,6 +80,11 @@ fun DashboardScreen(
                 }
             }
 
+            // Burnout / wellbeing alert (shown only when the analyzer detects a pattern)
+            uiState.burnoutState?.let { state ->
+                item { BurnoutWarningCard(state = state) }
+            }
+
             // 2. Today's Priorities
             item {
                 SectionHeader("Today's Priorities")
@@ -129,6 +135,46 @@ fun DashboardScreen(
                 items(uiState.todaysPlan.entries.toList().sortedBy { it.key.start }) { (slot, task) ->
                     AiPlanItem(slot, task)
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun BurnoutWarningCard(state: BurnoutState) {
+    val message = when (state) {
+        is BurnoutState.LowEnergy ->
+            "You've had low energy for ${state.consecutiveDays} days in a row. Consider scheduling a rest day."
+        is BurnoutState.WeekdayStress ->
+            "You often feel stressed on ${state.weekday}s. Consider a lighter schedule on that day."
+    }
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Default.Warning,
+                contentDescription = "Wellbeing alert",
+                tint = MaterialTheme.colorScheme.onErrorContainer
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+                Text(
+                    "Wellbeing Check",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onErrorContainer
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer
+                )
             }
         }
     }

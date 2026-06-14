@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -13,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.alvin.neuromind.data.TimetableEntry
@@ -22,6 +24,41 @@ import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.*
+
+// --- Category detection ---
+
+private enum class EntryCategory { ACADEMIC, FITNESS, SOCIAL, PERSONAL }
+
+private fun TimetableEntry.deriveCategory(): EntryCategory {
+    val lower = title.lowercase()
+    return when {
+        lower.contains(Regex("lecture|class|lab|tutorial|seminar|exam|study|course|assignment|revision|revise")) ->
+            EntryCategory.ACADEMIC
+        lower.contains(Regex("gym|workout|yoga|fitness|run|swim|sport|exercise|training|jog")) ->
+            EntryCategory.FITNESS
+        lower.contains(Regex("group|meeting|club|social|party|dinner|lunch|coffee|chat|session")) ->
+            EntryCategory.SOCIAL
+        else -> EntryCategory.PERSONAL
+    }
+}
+
+@Composable
+private fun entryContainerColor(category: EntryCategory): Color = when (category) {
+    EntryCategory.ACADEMIC -> MaterialTheme.colorScheme.primaryContainer
+    EntryCategory.FITNESS  -> MaterialTheme.colorScheme.tertiaryContainer
+    EntryCategory.SOCIAL   -> MaterialTheme.colorScheme.secondaryContainer
+    EntryCategory.PERSONAL -> MaterialTheme.colorScheme.surfaceContainer
+}
+
+@Composable
+private fun entryAccentColor(category: EntryCategory): Color = when (category) {
+    EntryCategory.ACADEMIC -> MaterialTheme.colorScheme.primary
+    EntryCategory.FITNESS  -> MaterialTheme.colorScheme.tertiary
+    EntryCategory.SOCIAL   -> MaterialTheme.colorScheme.secondary
+    EntryCategory.PERSONAL -> MaterialTheme.colorScheme.onSurfaceVariant
+}
+
+// --- Screen ---
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,8 +119,27 @@ fun AgendaList(
 ) {
     val today = LocalDate.now().dayOfWeek
     val orderedDays = DayOfWeek.entries.sortedBy { (it.value - today.value + 7) % 7 }
+    val listState = rememberLazyListState()
+    val nowTime = remember { LocalTime.now() }
 
-    LazyColumn(modifier = modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp)) {
+    // Compute index of the first upcoming event today for smooth scroll on open
+    val todayEntries = remember(entriesByDay) {
+        entriesByDay[today]?.sortedBy { it.startTime } ?: emptyList()
+    }
+    val scrollTargetIndex = remember(todayEntries) {
+        val pastCount = todayEntries.count { it.endTime.isBefore(nowTime) }
+        if (todayEntries.isNotEmpty() && pastCount > 0) 1 + pastCount else 0
+    }
+
+    LaunchedEffect(scrollTargetIndex) {
+        if (scrollTargetIndex > 0) listState.animateScrollToItem(scrollTargetIndex)
+    }
+
+    LazyColumn(
+        state = listState,
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp)
+    ) {
         orderedDays.forEach { day ->
             val entries = entriesByDay[day]?.sortedBy { it.startTime } ?: emptyList()
             if (entries.isNotEmpty()) {
@@ -98,30 +154,67 @@ fun AgendaList(
 }
 
 @Composable
-fun AgendaEventCard(entry: TimetableEntry, onEdit: (TimetableEntry) -> Unit, onDelete: (TimetableEntry) -> Unit) {
+fun AgendaEventCard(
+    entry: TimetableEntry,
+    onEdit: (TimetableEntry) -> Unit,
+    onDelete: (TimetableEntry) -> Unit
+) {
     val timeFormat = remember { DateTimeFormatter.ofPattern("h:mm a") }
+    val category = remember(entry.title) { entry.deriveCategory() }
+
     Card(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable { onEdit(entry) },
-        colors = CardDefaults.cardColors(
-            containerColor = if (entry.isRecurring) MaterialTheme.colorScheme.surfaceContainer else MaterialTheme.colorScheme.secondaryContainer
-        )
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .clickable { onEdit(entry) },
+        colors = CardDefaults.cardColors(containerColor = entryContainerColor(category))
     ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(horizontalAlignment = Alignment.End, modifier = Modifier.width(75.dp)) {
-                Text(text = entry.startTime.format(timeFormat), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                Text(text = entry.endTime.format(timeFormat), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    text = entry.startTime.format(timeFormat),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = entry.endTime.format(timeFormat),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-            VerticalDivider(modifier = Modifier.padding(horizontal = 12.dp).height(40.dp), color = MaterialTheme.colorScheme.primary)
+            VerticalDivider(
+                modifier = Modifier
+                    .padding(horizontal = 12.dp)
+                    .height(40.dp),
+                color = entryAccentColor(category)
+            )
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = entry.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(
+                    text = entry.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
                 if (!entry.venue.isNullOrBlank()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.LocationOn, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.secondary)
-                        Text(text = entry.venue!!, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+                        Icon(
+                            Icons.Default.LocationOn,
+                            null,
+                            modifier = Modifier.size(14.dp),
+                            tint = entryAccentColor(category)
+                        )
+                        Text(
+                            text = entry.venue!!,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = entryAccentColor(category)
+                        )
                     }
                 }
                 if (!entry.details.isNullOrBlank()) {
-                    Text(text = entry.details!!, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        text = entry.details!!,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
             IconButton(onClick = { onDelete(entry) }) {
@@ -143,7 +236,12 @@ fun DayHeader(day: DayOfWeek, isToday: Boolean) {
         if (isToday) {
             Spacer(modifier = Modifier.width(8.dp))
             Surface(color = MaterialTheme.colorScheme.primary, shape = MaterialTheme.shapes.small) {
-                Text(text = "TODAY", color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall)
+                Text(
+                    text = "TODAY",
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    style = MaterialTheme.typography.labelSmall
+                )
             }
         }
     }
