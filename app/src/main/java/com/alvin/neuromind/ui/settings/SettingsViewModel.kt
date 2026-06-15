@@ -13,6 +13,15 @@ import java.time.DayOfWeek
 import java.time.LocalTime
 import kotlin.random.Random
 
+data class AppInfo(
+    val versionName: String = "7.0",
+    val dbVersion: Int = 9,
+    val taskCount: Int = 0,
+    val timetableCount: Int = 0,
+    val feedbackCount: Int = 0,
+    val focusSessionCount: Int = 0
+)
+
 class SettingsViewModel(
     private val userPrefs: UserPreferencesRepository,
     private val repository: TaskRepository
@@ -32,6 +41,20 @@ class SettingsViewModel(
 
     val taskStyle: StateFlow<TaskStyle> = userPrefs.taskStyle
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TaskStyle.BALANCED)
+
+    val appInfo: StateFlow<AppInfo> = combine(
+        repository.allTasks,
+        repository.allTimetableEntries,
+        repository.allFeedbackLogs,
+        repository.allFocusSessions
+    ) { tasks, timetable, feedback, focusSessions ->
+        AppInfo(
+            taskCount          = tasks.size,
+            timetableCount     = timetable.size,
+            feedbackCount      = feedback.size,
+            focusSessionCount  = focusSessions.size
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AppInfo())
 
     fun updateTheme(theme: ThemeSetting) = viewModelScope.launch {
         userPrefs.saveThemeSetting(theme)
@@ -125,6 +148,71 @@ class SettingsViewModel(
 
     fun testNotification(context: Context) {
         NotificationHelper(context).showNotification(999, "Neuromind", "Notification system active!")
+    }
+
+    /**
+     * Seeds 14 days of varied feedback logs so Insights, retro cards,
+     * and burnout detection light up immediately after installing.
+     */
+    fun seedFeedbackLogs() = viewModelScope.launch {
+        val moods     = listOf(Mood.GREAT, Mood.GOOD, Mood.NEUTRAL, Mood.GOOD, Mood.TIRED, Mood.STRESSED, Mood.GOOD,
+                               Mood.GREAT, Mood.GOOD, Mood.NEUTRAL, Mood.TIRED, Mood.GOOD, Mood.GREAT, Mood.NEUTRAL)
+        val energies  = listOf(5, 4, 3, 4, 2, 1, 4, 5, 4, 3, 2, 4, 5, 3)
+        val tasksDone = listOf(4, 3, 2, 5, 1, 0, 3, 4, 3, 2, 1, 3, 4, 2)
+        val comments  = listOf(
+            "Great productive day!", null, "Feeling okay",
+            "Had a rough morning but recovered", null, "Burnt out today",
+            "Getting back on track", null, "Solid session", null,
+            "Tired but pushed through", "Good energy today", "Really productive!", null
+        )
+
+        val now = System.currentTimeMillis()
+        for (i in 0 until 14) {
+            val date = now - ((13 - i) * 86_400_000L)
+            repository.insertFeedbackLog(
+                FeedbackLog(
+                    date           = date,
+                    mood           = moods[i],
+                    energyLevel    = energies[i],
+                    tasksCompleted = tasksDone[i],
+                    comment        = comments[i]
+                )
+            )
+        }
+    }
+
+    /** Wipes only the FeedbackLog table — tasks and timetable are untouched. */
+    fun clearFeedbackLogs() = viewModelScope.launch {
+        repository.deleteAllFeedbackLogs()
+    }
+
+    /**
+     * Seeds ~14 varied focus sessions spread across the last 7 days so the
+     * Deep Work card on Insights populates immediately.
+     */
+    fun seedFocusSessions() = viewModelScope.launch {
+        val now = System.currentTimeMillis()
+        val dayMs = 86_400_000L
+        val titles = listOf("Mobile App Dev", "Algorithm Design", "Study Session", "Deep Focus Block", "Project Lab",
+                            "Reading Chapter 5", "Exam Prep", "Coding Practice", "Research Review", "Essay Draft",
+                            "Database Systems", "Linear Algebra", "Web Development", "Soft Skills")
+        val durations = listOf(25, 50, 25, 45, 30, 25, 50, 25, 45, 30, 25, 50, 30, 25)
+        val daysAgo   = listOf(0,  0,  1,  1,  2,  2,  3,  4,  4,  5,  5,  6,  6,  6)
+
+        titles.forEachIndexed { i, title ->
+            repository.insertFocusSession(
+                FocusSession(
+                    taskTitle = title,
+                    durationMinutes = durations[i],
+                    completedAt = now - (daysAgo[i] * dayMs) + (i * 3_600_000L)
+                )
+            )
+        }
+    }
+
+    /** Wipes only the focus_sessions table. */
+    fun clearFocusSessions() = viewModelScope.launch {
+        repository.deleteAllFocusSessions()
     }
 }
 

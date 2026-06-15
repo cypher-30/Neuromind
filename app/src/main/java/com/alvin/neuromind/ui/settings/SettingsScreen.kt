@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.alvin.neuromind.data.preferences.TaskStyle
@@ -32,11 +33,14 @@ fun SettingsScreen(
     val currentSessionLength by viewModel.preferredSessionLength.collectAsStateWithLifecycle()
     val currentTaskStyle by viewModel.taskStyle.collectAsStateWithLifecycle()
 
+    val appInfo by viewModel.appInfo.collectAsStateWithLifecycle()
+
     var showThemeDialog by remember { mutableStateOf(false) }
     var showPeakHoursDialog by remember { mutableStateOf(false) }
     var showSessionDialog by remember { mutableStateOf(false) }
     var showTaskStyleDialog by remember { mutableStateOf(false) }
     var showResetConfirmation by remember { mutableStateOf(false) }
+    var showAppInfoDialog by remember { mutableStateOf(false) }
 
     // Developer Mode State
     var devModeClicks by remember { mutableIntStateOf(0) }
@@ -186,6 +190,28 @@ fun SettingsScreen(
         )
     }
 
+    if (showAppInfoDialog) {
+        AlertDialog(
+            onDismissRequest = { showAppInfoDialog = false },
+            icon = { Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+            title = { Text("App & Database Info") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AppInfoRow("App version",    "v${appInfo.versionName}")
+                    AppInfoRow("DB version",     "${appInfo.dbVersion}")
+                    HorizontalDivider()
+                    AppInfoRow("Tasks",           "${appInfo.taskCount} rows")
+                    AppInfoRow("Timetable",       "${appInfo.timetableCount} rows")
+                    AppInfoRow("Feedback logs",   "${appInfo.feedbackCount} rows")
+                    AppInfoRow("Focus sessions",  "${appInfo.focusSessionCount} rows")
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showAppInfoDialog = false }) { Text("Close") }
+            }
+        )
+    }
+
     if (showResetConfirmation) {
         AlertDialog(
             onDismissRequest = { showResetConfirmation = false },
@@ -275,7 +301,7 @@ fun SettingsScreen(
                 SettingsItem(
                     icon = Icons.Default.Info,
                     title = "Version",
-                    subtitle = if (isDevModeEnabled) "Neuromind v3.7 (Dev Mode Active)" else "Neuromind v3.7",
+                    subtitle = if (isDevModeEnabled) "Neuromind v7.0 (Dev Mode Active)" else "Neuromind v7.0",
                     onClick = {
                         if (!isDevModeEnabled) {
                             devModeClicks++
@@ -329,8 +355,71 @@ fun SettingsScreen(
                         onClick = { showResetConfirmation = true }
                     )
                 }
+                item {
+                    SettingsItem(
+                        icon = Icons.Default.BarChart,
+                        title = "Seed 14-Day Feedback",
+                        subtitle = "Populate Insights & retro cards with sample data",
+                        onClick = {
+                            viewModel.seedFeedbackLogs()
+                            Toast.makeText(context, "14 days of feedback added", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                }
+                item {
+                    SettingsItem(
+                        icon = Icons.Default.DeleteSweep,
+                        title = "Clear Feedback Logs",
+                        subtitle = "Wipe the FeedbackLog table only",
+                        onClick = {
+                            viewModel.clearFeedbackLogs()
+                            Toast.makeText(context, "Feedback logs cleared", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                }
+                item {
+                    SettingsItem(
+                        icon = Icons.Default.Timer,
+                        title = "Seed Focus Sessions",
+                        subtitle = "Populate the Deep Work card with sample sessions",
+                        onClick = {
+                            viewModel.seedFocusSessions()
+                            Toast.makeText(context, "14 focus sessions added", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                }
+                item {
+                    SettingsItem(
+                        icon = Icons.Default.DeleteSweep,
+                        title = "Clear Focus Sessions",
+                        subtitle = "Wipe the focus_sessions table only",
+                        onClick = {
+                            viewModel.clearFocusSessions()
+                            Toast.makeText(context, "Focus sessions cleared", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                }
+                item {
+                    SettingsItem(
+                        icon = Icons.Default.Storage,
+                        title = "App & DB Info",
+                        subtitle = "Version, DB version, and row counts",
+                        onClick = { showAppInfoDialog = true }
+                    )
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun AppInfoRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
     }
 }
 
