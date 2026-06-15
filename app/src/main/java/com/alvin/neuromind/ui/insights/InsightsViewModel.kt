@@ -5,8 +5,12 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import com.alvin.neuromind.data.FeedbackLog
-import com.alvin.neuromind.data.Mood
+import com.alvin.neuromind.data.FocusSession
 import com.alvin.neuromind.data.TaskRepository
+import com.alvin.neuromind.domain.FocusStats
+import com.alvin.neuromind.domain.FocusSummary
+import com.alvin.neuromind.domain.RetroAnalyzer
+import com.alvin.neuromind.domain.RetroInsights
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -16,6 +20,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.TextStyle
 import java.util.Locale
+import kotlin.math.roundToInt
 
 data class InsightsUiState(
     val completionData: List<Pair<String, Int>> = emptyList(),
@@ -23,6 +28,8 @@ data class InsightsUiState(
     val averageEnergy: Int = 0,
     val wellnessScore: Float = 0.0f,
     val recentNotes: List<FeedbackLog> = emptyList(),
+    val retroInsights: RetroInsights? = null,
+    val focusSummary: FocusSummary? = null,
     val isLoading: Boolean = true
 )
 
@@ -30,8 +37,9 @@ class InsightsViewModel(private val repository: TaskRepository) : ViewModel() {
 
     val uiState: StateFlow<InsightsUiState> = combine(
         repository.allTasks,
-        repository.allFeedbackLogs
-    ) { tasks, feedbackLogs ->
+        repository.allFeedbackLogs,
+        repository.allFocusSessions
+    ) { tasks, feedbackLogs, focusSessions ->
 
         // Weekly completion chart
         val today = LocalDate.now()
@@ -63,16 +71,23 @@ class InsightsViewModel(private val repository: TaskRepository) : ViewModel() {
             val maxPossibleScore = recentFeedback.size * 10
             wellnessScore = (totalScore.toFloat() / maxPossibleScore.toFloat()).coerceIn(0f, 1f)
 
-            avgEnergy = (recentFeedback.sumOf { it.energyLevel } / recentFeedback.size)
+            avgEnergy = (recentFeedback.sumOf { it.energyLevel }.toFloat() / recentFeedback.size).roundToInt()
 
-            val avgMoodScore = recentFeedback.sumOf { it.mood.score } / recentFeedback.size
-            avgMoodStr = Mood.entries
-                .minByOrNull { kotlin.math.abs(it.score - avgMoodScore) }
-                ?.name?.lowercase()?.replaceFirstChar { it.uppercase() } ?: "Neutral"
+            val avgMoodScore = (recentFeedback.sumOf { it.mood.score }.toFloat() / recentFeedback.size).roundToInt()
+            avgMoodStr = "$avgMoodScore/5"
         }
 
         // Recent journal notes (non-blank comments, newest first, capped at 5)
         val recentNotes = feedbackLogs.filter { !it.comment.isNullOrBlank() }.take(5)
+
+        // Longitudinal analytics (Pillar 13)
+        val retroInsights = RetroAnalyzer.analyze(tasks, feedbackLogs)
+
+        // Focus session analytics
+        val focusSummary = if (focusSessions.isNotEmpty())
+            FocusStats.summarize(focusSessions)
+        else
+            null
 
         InsightsUiState(
             completionData = completionsByDay,
@@ -80,6 +95,8 @@ class InsightsViewModel(private val repository: TaskRepository) : ViewModel() {
             averageEnergy = avgEnergy,
             wellnessScore = wellnessScore,
             recentNotes = recentNotes,
+            retroInsights = retroInsights,
+            focusSummary = focusSummary,
             isLoading = false
         )
     }.stateIn(
