@@ -3,20 +3,28 @@ package com.alvin.neuromind.ui.dashboard
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.alvin.neuromind.data.Priority
 import com.alvin.neuromind.data.Task
 import com.alvin.neuromind.data.TaskRepository
 import com.alvin.neuromind.data.TimetableEntry
 import com.alvin.neuromind.data.preferences.UserPreferencesRepository
 import com.alvin.neuromind.domain.BurnoutAnalyzer
 import com.alvin.neuromind.domain.BurnoutState
+import com.alvin.neuromind.domain.RebalanceProposal
 import com.alvin.neuromind.domain.Scheduler
+import com.alvin.neuromind.domain.Suggestion
+import com.alvin.neuromind.domain.SuggestionEngine
+import com.alvin.neuromind.domain.TaskRebalancer
 import com.alvin.neuromind.domain.TimeSlot
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 data class DashboardUiState(
@@ -28,6 +36,8 @@ data class DashboardUiState(
     val upcomingEvents: List<TimetableEntry> = emptyList(),
     val todaysPlan: Map<TimeSlot, Task> = emptyMap(),
     val burnoutState: BurnoutState? = null,
+    val rebalanceProposals: List<RebalanceProposal> = emptyList(),
+    val suggestion: Suggestion? = null,
     val isLoading: Boolean = true
 )
 
@@ -37,22 +47,27 @@ class DashboardViewModel(
     private val userPrefs: UserPreferencesRepository
 ) : ViewModel() {
 
+    private val _rebalanceDismissed = MutableStateFlow(false)
+
     val uiState: StateFlow<DashboardUiState> = combine(
         repository.allTasks,
         repository.allTimetableEntries,
         repository.allFeedbackLogs,
-        userPrefs.cognitiveProfile
-    ) { tasks, timetable, feedbackLogs, profile ->
+        userPrefs.cognitiveProfile,
+        _rebalanceDismissed
+    ) { tasks, timetable, feedbackLogs, profile, rebalanceDismissed ->
 
         val pendingCount = tasks.count { !it.isCompleted }
         val completedCount = tasks.count { it.isCompleted }
 
-        val priorityList = tasks.filter { !it.isCompleted }
-            .sortedByDescending { it.priority }
-            .take(3)
-
+        val now = System.currentTimeMillis()
         val today = LocalDate.now()
         val nowTime = LocalTime.now()
+
+        val priorityList = tasks
+            .filter { task -> !task.isCompleted && (task.priority == Priority.HIGH || (task.dueDate != null && task.dueDate < now)) }
+            .sortedWith(compareByDescending<Task> { task -> task.dueDate != null && task.dueDate < now }.thenByDescending { it.priority })
+            .take(5)
         val eventsToday = timetable.filter { it.dayOfWeek == today.dayOfWeek }
             .filter { it.startTime.isAfter(nowTime) }
             .sortedBy { it.startTime }
@@ -60,6 +75,20 @@ class DashboardViewModel(
 
         val plan = scheduler.generateSchedule(tasks, timetable, profile = profile)
         val burnout = BurnoutAnalyzer.analyze(feedbackLogs)
+
+        val overdueTasks = tasks.filter { it.isOverdue && !it.isCompleted }
+        val rebalanceProposals = if (overdueTasks.size >= 3 && !rebalanceDismissed) {
+            TaskRebalancer.rebalance(overdueTasks, timetable, profile = profile)
+        } else {
+            emptyList()
+        }
+
+        // Suggestion is lower priority than burnout and rebalance — only compute when neither is active
+        val suggestion = if (burnout == null && rebalanceProposals.isEmpty()) {
+            SuggestionEngine.suggest(tasks, timetable, profile)
+        } else {
+            null
+        }
 
         DashboardUiState(
             greeting = getGreeting(),
@@ -70,6 +99,8 @@ class DashboardViewModel(
             upcomingEvents = eventsToday,
             todaysPlan = plan,
             burnoutState = burnout,
+            rebalanceProposals = rebalanceProposals,
+            suggestion = suggestion,
             isLoading = false
         )
     }.stateIn(
@@ -77,6 +108,26 @@ class DashboardViewModel(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = DashboardUiState()
     )
+
+    fun confirmRebalance() {
+        val proposals = uiState.value.rebalanceProposals
+        viewModelScope.launch {
+            val zone = ZoneId.systemDefault()
+            proposals.forEach { proposal ->
+                val epochMillis = proposal.suggestedDate
+                    .atTime(proposal.suggestedTime)
+                    .atZone(zone)
+                    .toInstant()
+                    .toEpochMilli()
+                repository.updateTask(proposal.task.copy(dueDate = epochMillis))
+            }
+            _rebalanceDismissed.value = false
+        }
+    }
+
+    fun dismissRebalance() {
+        _rebalanceDismissed.value = true
+    }
 
     private fun getGreeting(): String {
         val hour = LocalTime.now().hour

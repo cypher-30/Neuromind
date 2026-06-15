@@ -1,5 +1,6 @@
 package com.alvin.neuromind.ui.dashboard
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,12 +15,17 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.alvin.neuromind.ui.theme.GradientEnd
+import com.alvin.neuromind.ui.theme.GradientStart
 import com.alvin.neuromind.data.Task
 import com.alvin.neuromind.data.TimetableEntry
 import com.alvin.neuromind.domain.BurnoutState
+import com.alvin.neuromind.domain.RebalanceProposal
+import com.alvin.neuromind.domain.Suggestion
 import com.alvin.neuromind.domain.TimeSlot
 import java.text.SimpleDateFormat
 import java.time.format.DateTimeFormatter
@@ -32,14 +38,30 @@ fun DashboardScreen(
     viewModel: DashboardViewModel,
     onNavigateToTasks: () -> Unit,
     onNavigateToTimetable: () -> Unit,
-    onNavigateToFeedback: () -> Unit
+    onNavigateToFeedback: () -> Unit,
+    onNavigateToTask: (Int) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     var selectedTask by remember { mutableStateOf<Task?>(null) }
+    var showRebalanceDialog by remember { mutableStateOf(false) }
 
     if (selectedTask != null) {
         TaskDetailsDialog(task = selectedTask!!, onDismiss = { selectedTask = null })
+    }
+
+    if (showRebalanceDialog) {
+        RebalanceDialog(
+            proposals = uiState.rebalanceProposals,
+            onConfirm = {
+                viewModel.confirmRebalance()
+                showRebalanceDialog = false
+            },
+            onDismiss = {
+                viewModel.dismissRebalance()
+                showRebalanceDialog = false
+            }
+        )
     }
 
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
@@ -47,19 +69,33 @@ fun DashboardScreen(
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(text = uiState.greeting, style = MaterialTheme.typography.headlineSmall)
-                        Text(
-                            text = uiState.currentDate,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                },
-                scrollBehavior = scrollBehavior
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Brush.linearGradient(colors = listOf(GradientStart, GradientEnd)))
+            ) {
+                TopAppBar(
+                    title = {
+                        Column {
+                            Text(
+                                text  = uiState.greeting,
+                                style = MaterialTheme.typography.headlineSmall,
+                                color = androidx.compose.ui.graphics.Color.White
+                            )
+                            Text(
+                                text  = uiState.currentDate,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.80f)
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor    = androidx.compose.ui.graphics.Color.Transparent,
+                        scrolledContainerColor = androidx.compose.ui.graphics.Color.Transparent
+                    ),
+                    scrollBehavior = scrollBehavior
+                )
+            }
         },
         floatingActionButton = {
             FloatingActionButton(onClick = onNavigateToFeedback) {
@@ -80,9 +116,33 @@ fun DashboardScreen(
                 }
             }
 
-            // Burnout / wellbeing alert (shown only when the analyzer detects a pattern)
+            // Burnout warning (highest priority coaching card)
             uiState.burnoutState?.let { state ->
                 item { BurnoutWarningCard(state = state) }
+            }
+
+            // Rebalance card (second priority — only when no burnout warning)
+            if (uiState.burnoutState == null && uiState.rebalanceProposals.isNotEmpty()) {
+                item {
+                    RebalanceCard(
+                        overdueCount = uiState.rebalanceProposals.size,
+                        onRebalanceClick = { showRebalanceDialog = true }
+                    )
+                }
+            }
+
+            // Suggestion card (lowest priority coaching card)
+            if (uiState.burnoutState == null && uiState.rebalanceProposals.isEmpty()) {
+                uiState.suggestion?.let { suggestion ->
+                    item {
+                        SuggestionCard(
+                            suggestion = suggestion,
+                            onActionClick = { taskId ->
+                                if (taskId != null) onNavigateToTask(taskId)
+                            }
+                        )
+                    }
+                }
             }
 
             // 2. Today's Priorities
@@ -175,6 +235,144 @@ fun BurnoutWarningCard(state: BurnoutState) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onErrorContainer
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun RebalanceCard(overdueCount: Int, onRebalanceClick: () -> Unit) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Default.SwapHoriz,
+                contentDescription = "Rebalance tasks",
+                tint = MaterialTheme.colorScheme.onTertiaryContainer
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "Behind schedule?",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    "You have $overdueCount overdue tasks. Neuromind can spread them across the week.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            FilledTonalButton(onClick = onRebalanceClick) {
+                Text("Rebalance")
+            }
+        }
+    }
+}
+
+@Composable
+fun RebalanceDialog(
+    proposals: List<RebalanceProposal>,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val dateFormatter = remember { DateTimeFormatter.ofPattern("EEE, MMM d") }
+    val timeFormatter = remember { DateTimeFormatter.ofPattern("h:mm a") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Default.SwapHoriz, contentDescription = null) },
+        title = { Text("Rebalance Schedule") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "Move these overdue tasks to free slots this week:",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                proposals.forEach { proposal ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.ArrowForward,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                proposal.task.title,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                "${proposal.suggestedDate.format(dateFormatter)} at ${proposal.suggestedTime.format(timeFormatter)}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = onConfirm) { Text("Confirm") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Not now") }
+        }
+    )
+}
+
+@Composable
+fun SuggestionCard(suggestion: Suggestion, onActionClick: (Int?) -> Unit) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Default.AutoAwesome,
+                contentDescription = "Neuromind suggests",
+                tint = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "Neuromind Suggests",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    suggestion.message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                if (suggestion.actionLabel != null && suggestion.taskId != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextButton(
+                        onClick = { onActionClick(suggestion.taskId) },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        ),
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Text(suggestion.actionLabel, style = MaterialTheme.typography.labelMedium)
+                    }
+                }
             }
         }
     }
