@@ -13,10 +13,15 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -28,11 +33,15 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
+import com.alvin.neuromind.data.Task
 import com.alvin.neuromind.data.TaskRepository
 import com.alvin.neuromind.data.preferences.ThemeSetting
 import com.alvin.neuromind.data.preferences.UserPreferencesRepository
 import com.alvin.neuromind.domain.Scheduler
 import com.alvin.neuromind.navigation.Screen
+import com.alvin.neuromind.ui.assistant.AssistantScreen
+import com.alvin.neuromind.ui.assistant.AssistantViewModel
+import com.alvin.neuromind.ui.assistant.AssistantViewModelFactory
 import com.alvin.neuromind.ui.dashboard.DashboardScreen
 import com.alvin.neuromind.ui.dashboard.DashboardViewModel
 import com.alvin.neuromind.ui.dashboard.DashboardViewModelFactory
@@ -40,6 +49,8 @@ import com.alvin.neuromind.ui.feedback.FeedbackScreen
 import com.alvin.neuromind.ui.feedback.FeedbackViewModel
 import com.alvin.neuromind.ui.feedback.FeedbackViewModelFactory
 import com.alvin.neuromind.ui.focus.FocusModeScreen
+import com.alvin.neuromind.ui.focus.FocusViewModel
+import com.alvin.neuromind.ui.focus.FocusViewModelFactory
 import com.alvin.neuromind.ui.insights.InsightsScreen
 import com.alvin.neuromind.ui.insights.InsightsViewModel
 import com.alvin.neuromind.ui.insights.InsightsViewModelFactory
@@ -50,6 +61,7 @@ import com.alvin.neuromind.ui.tasks.*
 import com.alvin.neuromind.ui.theme.NeuromindTheme
 import com.alvin.neuromind.ui.timetable.TimetableScreen
 import com.alvin.neuromind.ui.timetable.TimetableViewModel
+import com.alvin.neuromind.ui.splash.SplashScreen
 import com.alvin.neuromind.ui.timetable.TimetableViewModelFactory
 
 data class NavItem(
@@ -76,6 +88,13 @@ fun NeuromindApp(
     }
 
     NeuromindTheme(darkTheme = useDarkTheme) {
+        var showSplash by rememberSaveable { mutableStateOf(true) }
+
+        if (showSplash) {
+            SplashScreen(onFinished = { showSplash = false })
+            return@NeuromindTheme
+        }
+
         val navController = rememberNavController()
 
         Scaffold(
@@ -85,7 +104,7 @@ fun NeuromindApp(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .windowInsetsPadding(WindowInsets.safeDrawing)
+                    .windowInsetsPadding(WindowInsets.safeDrawing.exclude(WindowInsets.ime))
             ) {
                 NavHost(
                     navController = navController,
@@ -102,7 +121,10 @@ fun NeuromindApp(
                             viewModel = vm,
                             onNavigateToTasks = { navController.navigate(Screen.TaskList.withArgs(true)) },
                             onNavigateToTimetable = { navController.navigate(Screen.Timetable.route) },
-                            onNavigateToFeedback = { navController.navigate(Screen.Feedback.route) }
+                            onNavigateToFeedback = { navController.navigate(Screen.Feedback.route) },
+                            onNavigateToTask = { taskId ->
+                                navController.navigate(Screen.AddEditTask.route + "?taskId=$taskId")
+                            }
                         )
                     }
 
@@ -111,7 +133,7 @@ fun NeuromindApp(
                         arguments = listOf(navArgument("isRescheduleMode") { type = NavType.BoolType; defaultValue = false })
                     ) { backStackEntry ->
                         val isRescheduleMode = backStackEntry.arguments?.getBoolean("isRescheduleMode") ?: false
-                        val factory = TaskViewModelFactory(repository, scheduler)
+                        val factory = TaskViewModelFactory(repository)
                         val vm = viewModel<TaskViewModel>(factory = factory)
 
                         TaskListScreen(
@@ -156,12 +178,16 @@ fun NeuromindApp(
                         arguments = listOf(navArgument("taskId") { type = NavType.IntType })
                     ) { backStackEntry ->
                         val taskId = backStackEntry.arguments?.getInt("taskId") ?: return@composable
-                        val taskViewModel: TaskViewModel = viewModel(factory = TaskViewModelFactory(repository, scheduler))
-                        val tasks by taskViewModel.uiState.collectAsStateWithLifecycle()
-                        val task = tasks.displayedTasks.find { it.id == taskId }
+                        var task by remember { mutableStateOf<Task?>(null) }
+                        LaunchedEffect(taskId) { task = repository.getTaskById(taskId) }
+                        val focusVm = viewModel<FocusViewModel>(factory = FocusViewModelFactory(repository))
 
                         task?.let {
-                            FocusModeScreen(task = it, onFinish = { navController.popBackStack() })
+                            FocusModeScreen(
+                                task = it,
+                                viewModel = focusVm,
+                                onFinish = { navController.popBackStack() }
+                            )
                         }
                     }
 
@@ -188,6 +214,20 @@ fun NeuromindApp(
                             onNavigateBack = { navController.popBackStack() }
                         )
                     }
+
+                    composable(Screen.Assistant.route) {
+                        val factory = AssistantViewModelFactory(repository, userPreferencesRepository)
+                        val vm = viewModel<AssistantViewModel>(factory = factory)
+                        AssistantScreen(
+                            viewModel = vm,
+                            onNavigateToFocus = { taskId ->
+                                navController.navigate(Screen.FocusMode.route + "/$taskId")
+                            },
+                            onNavigateToTasks = { navController.navigate(Screen.TaskList.withArgs(false)) },
+                            onNavigateToTimetable = { navController.navigate(Screen.Timetable.route) },
+                            onNavigateToInsights = { navController.navigate(Screen.Insights.route) }
+                        )
+                    }
                 }
             }
         }
@@ -197,8 +237,9 @@ fun NeuromindApp(
 @Composable
 private fun BottomNavBar(navController: NavController) {
     val navItems = listOf(
-        NavItem(Screen.Dashboard, "Dashboard", Icons.Default.Dashboard),
+        NavItem(Screen.Dashboard, "Home", Icons.Default.Dashboard),
         NavItem(Screen.TaskList, "Tasks", Icons.AutoMirrored.Filled.List),
+        NavItem(Screen.Assistant, "Ask", Icons.Default.SmartToy),
         NavItem(Screen.Insights, "Insights", Icons.Default.BarChart),
         NavItem(Screen.Settings, "Settings", Icons.Default.Settings)
     )
@@ -206,7 +247,10 @@ private fun BottomNavBar(navController: NavController) {
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentDestination = navBackStackEntry?.destination
         navItems.forEach { item ->
-            val routeToCheck = if (item.screen == Screen.TaskList) Screen.TaskList.route + "/{isRescheduleMode}" else item.screen.route
+            val routeToCheck = when (item.screen) {
+                Screen.TaskList -> Screen.TaskList.route + "/{isRescheduleMode}"
+                else -> item.screen.route
+            }
             val isSelected = currentDestination?.hierarchy?.any { it.route == routeToCheck } == true
 
             val iconScale by animateFloatAsState(
@@ -232,7 +276,14 @@ private fun BottomNavBar(navController: NavController) {
                         modifier = Modifier.scale(iconScale)
                     )
                 },
-                label = { Text(item.label) }
+                label = {
+                    Text(
+                        text     = item.label,
+                        maxLines = 1,
+                        softWrap = false,
+                        style    = MaterialTheme.typography.labelMedium
+                    )
+                }
             )
         }
     }

@@ -9,6 +9,7 @@ sealed class Screen(val route: String) {
     data object Insights : Screen("insights")
     data object Settings : Screen("settings")
     data object Feedback : Screen("feedback")
+    data object Assistant : Screen("assistant")
 
     // Helper to pass arguments safely
     fun withArgs(vararg args: Any): String {
