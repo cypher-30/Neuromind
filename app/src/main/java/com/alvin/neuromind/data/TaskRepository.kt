@@ -5,7 +5,8 @@ import kotlinx.coroutines.flow.Flow
 class TaskRepository(
     private val taskDao: TaskDao,
     private val timetableDao: TimetableDao,
-    private val feedbackLogDao: FeedbackLogDao
+    private val feedbackLogDao: FeedbackLogDao,
+    private val focusSessionDao: FocusSessionDao
 ) {
     val allTasks: Flow<List<Task>> = taskDao.getAllTasks()
     suspend fun getTaskById(id: Int): Task? = taskDao.getTaskById(id)
@@ -20,4 +21,9 @@ class TaskRepository(
 
     val allFeedbackLogs: Flow<List<FeedbackLog>> = feedbackLogDao.getAllLogs()
     suspend fun insertFeedbackLog(log: FeedbackLog) = feedbackLogDao.insertFeedbackLog(log)
+    suspend fun deleteAllFeedbackLogs() = feedbackLogDao.deleteAllLogs()
+
+    val allFocusSessions: Flow<List<FocusSession>> = focusSessionDao.getAllSessions()
+    suspend fun insertFocusSession(session: FocusSession) = focusSessionDao.insertSession(session)
+    suspend fun deleteAllFocusSessions() = focusSessionDao.deleteAllSessions()
 }

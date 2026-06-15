@@ -5,6 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -13,13 +14,14 @@ import java.time.DayOfWeek
 import java.time.LocalTime
 
 // Schema is live in production installs — do not change entities without bumping version + a real migration.
-@Database(entities = [Task::class, TimetableEntry::class, FeedbackLog::class], version = 8, exportSchema = false)
+@Database(entities = [Task::class, TimetableEntry::class, FeedbackLog::class, FocusSession::class], version = 9, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class NeuromindDatabase : RoomDatabase() {
 
     abstract fun taskDao(): TaskDao
     abstract fun timetableDao(): TimetableDao
     abstract fun feedbackLogDao(): FeedbackLogDao
+    abstract fun focusSessionDao(): FocusSessionDao
 
     private class NeuromindDatabaseCallback(
         private val scope: CoroutineScope
@@ -120,6 +122,21 @@ abstract class NeuromindDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: NeuromindDatabase? = null
 
+        // First real Migration in the project — adds the focus_sessions table (DB v8 → v9).
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `focus_sessions` (
+                        `id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                        `taskId` INTEGER,
+                        `taskTitle` TEXT NOT NULL,
+                        `durationMinutes` INTEGER NOT NULL,
+                        `completedAt` INTEGER NOT NULL
+                    )""".trimIndent()
+                )
+            }
+        }
+
         fun getDatabase(context: Context, scope: CoroutineScope): NeuromindDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -127,7 +144,7 @@ abstract class NeuromindDatabase : RoomDatabase() {
                     NeuromindDatabase::class.java,
                     "neuromind_database"
                 )
-                    .fallbackToDestructiveMigration()
+                    .addMigrations(MIGRATION_8_9)
                     .addCallback(NeuromindDatabaseCallback(scope))
                     .build()
                 INSTANCE = instance
