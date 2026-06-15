@@ -37,7 +37,8 @@ import java.util.*
 data class TaskListContentState(
     val filter: TaskFilter,
     val isLoading: Boolean,
-    val tasks: List<Task>
+    val tasks: List<Task>,
+    val allTasksForBlocking: List<Task>
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -84,14 +85,14 @@ fun TaskListScreen(
             }
 
             AnimatedContent(
-                targetState = TaskListContentState(uiState.selectedFilter, uiState.isLoading, uiState.displayedTasks),
+                targetState = TaskListContentState(uiState.selectedFilter, uiState.isLoading, uiState.displayedTasks, uiState.allTasksForBlocking),
                 transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(150)) },
                 label = "task_list_content"
             ) { contentState ->
                 when {
                     contentState.isLoading -> TaskSkeletonList()
                     contentState.tasks.isEmpty() -> EmptyState(contentState.filter)
-                    else -> TaskItemList(contentState.tasks, viewModel, onEditTaskClicked, onFocusTaskClicked)
+                    else -> TaskItemList(contentState.tasks, contentState.allTasksForBlocking, viewModel, onEditTaskClicked, onFocusTaskClicked)
                 }
             }
         }
@@ -102,6 +103,7 @@ fun TaskListScreen(
 @Composable
 private fun TaskItemList(
     tasks: List<Task>,
+    allTasksForBlocking: List<Task>,
     viewModel: TaskViewModel,
     onEditTaskClicked: (Task) -> Unit,
     onFocusTaskClicked: (Task) -> Unit
@@ -113,18 +115,9 @@ private fun TaskItemList(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        val allTasks = tasks // assuming 'tasks' is the full list from UI state if needed, 
-                            // but actually 'tasks' here is the filtered list.
-                            // To correctly identify blocked status, we might need the full list.
-                            // Let's re-evaluate if the ViewModel should handle isBlocked logic.
-                            // For now, let's assume we can check if prerequisite is in the list and not completed.
-
         items(items = tasks, key = { it.id }) { task ->
             val isBlocked = task.prerequisiteTaskId?.let { preId ->
-                // This is a bit inefficient in O(N^2) for the list, 
-                // but for a mobile task list it's usually fine.
-                // Better would be the ViewModel providing a list of TaskWithStatus
-                tasks.any { it.id == preId && !it.isCompleted }
+                allTasksForBlocking.any { it.id == preId && !it.isCompleted }
             } ?: false
 
             val dismissState = rememberSwipeToDismissBoxState(
@@ -368,24 +361,37 @@ fun EmptyState(filter: TaskFilter = TaskFilter.ALL) {
 fun QuickAddTaskField(onAddTask: (String) -> Unit) {
     var text by remember { mutableStateOf("") }
 
-    OutlinedTextField(
-        value = text,
-        onValueChange = { text = it },
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        placeholder = { Text("Quick add: Buy milk tomorrow at 5pm") },
-        trailingIcon = {
-            if (text.isNotBlank()) {
-                IconButton(onClick = {
-                    onAddTask(text)
-                    text = ""
-                }) {
-                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Add Task")
+    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Text(
+            text  = "Natural language — try \"Essay due Friday 3pm\"",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+        )
+        OutlinedTextField(
+            value = text,
+            onValueChange = { text = it },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("Add a task…") },
+            leadingIcon = {
+                Icon(
+                    Icons.Default.AutoAwesome,
+                    contentDescription = "Smart add",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            },
+            trailingIcon = {
+                if (text.isNotBlank()) {
+                    IconButton(onClick = {
+                        onAddTask(text)
+                        text = ""
+                    }) {
+                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Add Task")
+                    }
                 }
-            }
-        },
-        shape = MaterialTheme.shapes.medium,
-        singleLine = true
-    )
+            },
+            shape = MaterialTheme.shapes.medium,
+            singleLine = true
+        )
+    }
 }

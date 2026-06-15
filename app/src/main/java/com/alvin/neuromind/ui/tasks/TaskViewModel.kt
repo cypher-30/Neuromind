@@ -16,6 +16,7 @@ enum class TaskFilter { ALL, TODAY, UPCOMING, OVERDUE, COMPLETED }
 
 data class TaskListUiState(
     val displayedTasks: List<Task> = emptyList(),
+    val allTasksForBlocking: List<Task> = emptyList(),
     val selectedFilter: TaskFilter = TaskFilter.ALL,
     val isLoading: Boolean = true
 )
@@ -33,7 +34,7 @@ class TaskViewModel(private val repository: TaskRepository) : ViewModel() {
             TaskFilter.TODAY -> tasks.filter { !it.isCompleted && it.dueDate != null && isSameDay(it.dueDate, today) }
             TaskFilter.UPCOMING -> tasks.filter { !it.isCompleted && (it.dueDate == null || it.dueDate > now) && !isSameDay(it.dueDate ?: 0, today) }
         }
-        TaskListUiState(filtered, filter, false)
+        TaskListUiState(filtered, tasks, filter, false)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TaskListUiState())
 
     fun setFilter(filter: TaskFilter) { _selectedFilter.value = filter }
@@ -60,7 +61,7 @@ class TaskViewModel(private val repository: TaskRepository) : ViewModel() {
         Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate() == date
 }
 
-class TaskViewModelFactory(private val repository: TaskRepository, private val scheduler: com.alvin.neuromind.domain.Scheduler) : ViewModelProvider.Factory {
+class TaskViewModelFactory(private val repository: TaskRepository) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(TaskViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
