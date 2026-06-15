@@ -16,29 +16,30 @@ object TimeFinder {
      * Finds up to [maxResults] free time slots of [durationMinutes] within the next
      * [lookaheadDays] days, avoiding all timetable conflicts.
      *
-     * Search starts from the next 30-minute mark when called during today,
-     * or from 8 AM for future days.
+     * Search starts from the next 30-minute mark after [referenceTime] for today,
+     * or from 8 AM for future days. Both [referenceDate] and [referenceTime] default
+     * to the real current date/time; pass explicit values for deterministic testing.
      */
     fun findSlots(
         timetable: List<TimetableEntry>,
         durationMinutes: Int,
         lookaheadDays: Int = 7,
-        maxResults: Int = 5
+        maxResults: Int = 5,
+        referenceDate: LocalDate = LocalDate.now(),
+        referenceTime: LocalTime = LocalTime.now()
     ): List<AvailableSlot> {
         val slots = mutableListOf<AvailableSlot>()
-        val today = LocalDate.now()
         val dayStart = LocalTime.of(8, 0)
         val dayEnd = LocalTime.of(22, 0)
 
         for (dayOffset in 0 until lookaheadDays) {
             if (slots.size >= maxResults) break
-            val date = today.plusDays(dayOffset.toLong())
+            val date = referenceDate.plusDays(dayOffset.toLong())
 
             var current = if (dayOffset == 0) {
-                val now = LocalTime.now()
                 when {
-                    now.isBefore(dayStart) -> dayStart
-                    else -> now.withSecond(0).withNano(0).plusMinutes(30)
+                    referenceTime.isBefore(dayStart) -> dayStart
+                    else -> referenceTime.withSecond(0).withNano(0).plusMinutes(30)
                 }
             } else {
                 dayStart
