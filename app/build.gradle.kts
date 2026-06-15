@@ -13,8 +13,8 @@ android {
         applicationId = "com.alvin.neuromind"
         minSdk = 26
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 5
+        versionName = "7.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
@@ -73,6 +73,9 @@ dependencies {
 
     // Vico Chart
     implementation(libs.vico.compose.m3)
+
+    // Glance (home-screen widget)
+    implementation(libs.androidx.glance.appwidget)
 
     // Testing
     testImplementation(libs.junit)
