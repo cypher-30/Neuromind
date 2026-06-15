@@ -8,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -21,11 +22,15 @@ fun FeedbackScreen(
     onFeedbackSubmitted: () -> Unit,
     onNavigateBack: () -> Unit
 ) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var selectedMood by remember { mutableStateOf(Mood.NEUTRAL) }
     var energyLevel by remember { mutableFloatStateOf(3f) }
     var tasksCompleted by remember { mutableStateOf("") }
     var comment by remember { mutableStateOf("") }
-    var isSubmitting by remember { mutableStateOf(false) }
+
+    LaunchedEffect(uiState.isSubmitted) {
+        if (uiState.isSubmitted) onFeedbackSubmitted()
+    }
 
     Scaffold(
         topBar = {
@@ -43,6 +48,7 @@ fun FeedbackScreen(
             modifier = Modifier
                 .padding(padding)
                 .padding(16.dp)
+                .imePadding()
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
@@ -82,30 +88,21 @@ fun FeedbackScreen(
 
             Button(
                 onClick = {
-                    if (!isSubmitting) {
-                        isSubmitting = true
-                        val log = FeedbackLog(
-                            mood = selectedMood,
-                            energyLevel = energyLevel.toInt(),
-                            tasksCompleted = tasksCompleted.toIntOrNull() ?: 0,
-                            comment = comment.takeIf { it.isNotBlank() }
+                    if (!uiState.isSubmitted) {
+                        viewModel.submitFeedback(
+                            FeedbackLog(
+                                mood = selectedMood,
+                                energyLevel = energyLevel.toInt(),
+                                tasksCompleted = tasksCompleted.toIntOrNull() ?: 0,
+                                comment = comment.takeIf { it.isNotBlank() }
+                            )
                         )
-                        viewModel.submitFeedback(log)
-                        onFeedbackSubmitted()
                     }
                 },
-                enabled = !isSubmitting,
+                enabled = !uiState.isSubmitted,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                if (isSubmitting) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                } else {
-                    Text("Submit Review")
-                }
+                Text("Submit Review")
             }
         }
     }
