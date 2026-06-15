@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.Neuromind" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Paint the system window brand-blue before Compose draws,
+             preventing the white flash on cold launch. -->
+        <item name="android:windowBackground">@color/splash_background</item>
     </style>
 </resources>
