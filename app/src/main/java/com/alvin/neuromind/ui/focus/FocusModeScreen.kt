@@ -2,10 +2,12 @@ package com.alvin.neuromind.ui.focus
 
 import android.app.NotificationManager
 import android.content.Context
+import android.content.Intent
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -28,10 +30,11 @@ import kotlinx.coroutines.delay
 private enum class TimerState { Idle, Running, Paused }
 
 @Composable
-fun FocusModeScreen(task: Task, onFinish: () -> Unit) {
+fun FocusModeScreen(task: Task, viewModel: FocusViewModel, onFinish: () -> Unit) {
     val context = LocalContext.current
-    var sessionMinutes by rememberSaveable { mutableIntStateOf(25) }
-    var secondsLeft by rememberSaveable { mutableIntStateOf(sessionMinutes * 60) }
+    val initialMinutes = task.durationMinutes.coerceIn(5, 120)
+    var sessionMinutes by rememberSaveable { mutableIntStateOf(initialMinutes) }
+    var secondsLeft by rememberSaveable { mutableIntStateOf(initialMinutes * 60) }
     var timerState by rememberSaveable { mutableStateOf(TimerState.Idle) }
     var showDoneDialog by remember { mutableStateOf(false) }
 
@@ -64,6 +67,7 @@ fun FocusModeScreen(task: Task, onFinish: () -> Unit) {
             timerState = TimerState.Idle
             showDoneDialog = true
             triggerAlert(context)
+            viewModel.recordCompletedSession(task, sessionMinutes)
         }
     }
 
@@ -194,12 +198,17 @@ fun FocusModeScreen(task: Task, onFinish: () -> Unit) {
             TextButton(onClick = onFinish) { Text("End Session") }
             
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !notificationManager.isNotificationPolicyAccessGranted) {
-                Text(
-                    text = "DND mode requires permission in Settings",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.secondary,
+                OutlinedButton(
+                    onClick = {
+                        context.startActivity(
+                            Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                    },
                     modifier = Modifier.padding(top = 8.dp)
-                )
+                ) {
+                    Text("Grant DND Access")
+                }
             }
         }
     }
