@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.alvin.neuromind.ui.theme.GradientEnd
 import com.alvin.neuromind.ui.theme.GradientStart
+import com.alvin.neuromind.ui.theme.priorityColor
 import com.alvin.neuromind.data.Task
 import com.alvin.neuromind.data.TimetableEntry
 import com.alvin.neuromind.domain.BurnoutState
@@ -38,7 +39,7 @@ fun DashboardScreen(
     viewModel: DashboardViewModel,
     onNavigateToTasks: () -> Unit,
     onNavigateToTimetable: () -> Unit,
-    onNavigateToFeedback: () -> Unit,
+    onNavigateToAssistant: () -> Unit,
     onNavigateToTask: (Int) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -98,8 +99,12 @@ fun DashboardScreen(
             }
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onNavigateToFeedback) {
-                Icon(Icons.Default.Reviews, contentDescription = "Daily Review")
+            FloatingActionButton(
+                onClick = onNavigateToAssistant,
+                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor   = MaterialTheme.colorScheme.onSecondaryContainer
+            ) {
+                Icon(Icons.Default.SmartToy, contentDescription = "Ask Neuromind")
             }
         }
     ) { innerPadding ->
@@ -243,7 +248,7 @@ fun BurnoutWarningCard(state: BurnoutState) {
 @Composable
 fun RebalanceCard(overdueCount: Int, onRebalanceClick: () -> Unit) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -253,7 +258,7 @@ fun RebalanceCard(overdueCount: Int, onRebalanceClick: () -> Unit) {
             Icon(
                 Icons.Default.SwapHoriz,
                 contentDescription = "Rebalance tasks",
-                tint = MaterialTheme.colorScheme.onTertiaryContainer
+                tint = MaterialTheme.colorScheme.onSecondaryContainer
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
@@ -261,17 +266,23 @@ fun RebalanceCard(overdueCount: Int, onRebalanceClick: () -> Unit) {
                     "Behind schedule?",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     "You have $overdueCount overdue tasks. Neuromind can spread them across the week.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
                 )
             }
             Spacer(modifier = Modifier.width(8.dp))
-            FilledTonalButton(onClick = onRebalanceClick) {
+            FilledTonalButton(
+                onClick = onRebalanceClick,
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.secondary,
+                    contentColor   = MaterialTheme.colorScheme.onSecondary
+                )
+            ) {
                 Text("Rebalance")
             }
         }
@@ -415,7 +426,7 @@ fun PriorityTaskRow(task: Task, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         val icon = if (task.isOverdue) Icons.Default.Warning else Icons.AutoMirrored.Filled.LabelImportant
-        val color = if (task.isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+        val color = priorityColor(task.priority)
         val iconDesc = if (task.isOverdue) "Overdue" else "High priority"
         Icon(icon, contentDescription = iconDesc, tint = color)
         Spacer(modifier = Modifier.width(12.dp))

@@ -4,7 +4,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.CallSplit
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -18,6 +17,7 @@ import com.alvin.neuromind.data.Difficulty
 import com.alvin.neuromind.data.Priority
 import com.alvin.neuromind.data.Task
 import com.alvin.neuromind.domain.AvailableSlot
+import com.alvin.neuromind.ui.components.NeuromindTopBar
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.LocalDate
@@ -121,13 +121,9 @@ fun AddEditTaskScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("New Task") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateUp) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
+            NeuromindTopBar(
+                title = "New Task",
+                onNavigateBack = onNavigateUp,
                 actions = {
                     IconButton(
                         onClick = { viewModel.saveTask() },

@@ -23,12 +23,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.alvin.neuromind.R
 import com.alvin.neuromind.ui.theme.GradientEnd
 import com.alvin.neuromind.ui.theme.GradientStart
+import com.alvin.neuromind.ui.theme.LightBackground
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -37,29 +39,34 @@ fun SplashScreen(onFinished: () -> Unit) {
     val scale     = remember { Animatable(0.55f) }
     val alpha     = remember { Animatable(0f) }
     val textAlpha = remember { Animatable(0f) }
+    val bloom     = remember { Animatable(0f) }
 
     LaunchedEffect(Unit) {
         launch {
             scale.animateTo(
                 targetValue = 1f,
                 animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness    = Spring.StiffnessMediumLow
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness    = Spring.StiffnessLow
                 )
             )
         }
         launch {
             alpha.animateTo(
                 targetValue  = 1f,
-                animationSpec = tween(durationMillis = 550, easing = FastOutSlowInEasing)
+                animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing)
             )
         }
-        delay(450)
+        delay(500)
         textAlpha.animateTo(
             targetValue  = 1f,
-            animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing)
+            animationSpec = tween(durationMillis = 450, easing = FastOutSlowInEasing)
         )
-        delay(900)
+        delay(850) // hold → 1800ms total
+        bloom.animateTo(
+            targetValue  = 1f,
+            animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing)
+        )
         onFinished()
     }
 
@@ -67,11 +74,19 @@ fun SplashScreen(onFinished: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(
-                Brush.linearGradient(colors = listOf(GradientStart, GradientEnd))
+                Brush.linearGradient(
+                    colors = listOf(
+                        lerp(GradientStart, LightBackground, bloom.value),
+                        lerp(GradientEnd, LightBackground, bloom.value)
+                    )
+                )
             ),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.graphicsLayer { this.alpha = 1f - bloom.value }
+        ) {
             Image(
                 painter = painterResource(id = R.drawable.ic_neuromind_logo),
                 contentDescription = "Neuromind",

@@ -7,7 +7,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -15,9 +14,17 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.alvin.neuromind.data.TimetableEntry
+import com.alvin.neuromind.ui.components.NeuromindTopBar
+import com.alvin.neuromind.ui.theme.CategorySocialContainerDark
+import com.alvin.neuromind.ui.theme.CategorySocialContainerLight
+import com.alvin.neuromind.ui.theme.CategorySocialDark
+import com.alvin.neuromind.ui.theme.CategorySocialLight
+import com.alvin.neuromind.ui.theme.OnCategorySocialContainerDark
+import com.alvin.neuromind.ui.theme.OnCategorySocialContainerLight
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalTime
@@ -46,7 +53,7 @@ private fun TimetableEntry.deriveCategory(): EntryCategory {
 private fun entryContainerColor(category: EntryCategory): Color = when (category) {
     EntryCategory.ACADEMIC -> MaterialTheme.colorScheme.primaryContainer
     EntryCategory.FITNESS  -> MaterialTheme.colorScheme.tertiaryContainer
-    EntryCategory.SOCIAL   -> MaterialTheme.colorScheme.secondaryContainer
+    EntryCategory.SOCIAL   -> if (MaterialTheme.colorScheme.surface.luminance() < 0.5f) CategorySocialContainerDark else CategorySocialContainerLight
     EntryCategory.PERSONAL -> MaterialTheme.colorScheme.surfaceContainer
 }
 
@@ -54,8 +61,17 @@ private fun entryContainerColor(category: EntryCategory): Color = when (category
 private fun entryAccentColor(category: EntryCategory): Color = when (category) {
     EntryCategory.ACADEMIC -> MaterialTheme.colorScheme.primary
     EntryCategory.FITNESS  -> MaterialTheme.colorScheme.tertiary
-    EntryCategory.SOCIAL   -> MaterialTheme.colorScheme.secondary
+    EntryCategory.SOCIAL   -> if (MaterialTheme.colorScheme.surface.luminance() < 0.5f) CategorySocialDark else CategorySocialLight
     EntryCategory.PERSONAL -> MaterialTheme.colorScheme.onSurfaceVariant
+}
+
+// contentColorFor() only resolves known M3 roles; SOCIAL's container is a
+// custom categorical color, so its "on" color needs to be supplied explicitly
+// or Card falls back to Color.Unspecified for entry title/body text.
+@Composable
+private fun entryContentColor(category: EntryCategory): Color = when (category) {
+    EntryCategory.SOCIAL -> if (MaterialTheme.colorScheme.surface.luminance() < 0.5f) OnCategorySocialContainerDark else OnCategorySocialContainerLight
+    else -> MaterialTheme.colorScheme.contentColorFor(entryContainerColor(category))
 }
 
 // --- Screen ---
@@ -80,14 +96,7 @@ fun TimetableScreen(viewModel: TimetableViewModel, onNavigateBack: () -> Unit) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Schedule") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
+            NeuromindTopBar(title = "Schedule", onNavigateBack = onNavigateBack)
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddDialog = true }) {
@@ -167,7 +176,10 @@ fun AgendaEventCard(
             .fillMaxWidth()
             .padding(vertical = 4.dp)
             .clickable { onEdit(entry) },
-        colors = CardDefaults.cardColors(containerColor = entryContainerColor(category))
+        colors = CardDefaults.cardColors(
+            containerColor = entryContainerColor(category),
+            contentColor   = entryContentColor(category)
+        )
     ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(horizontalAlignment = Alignment.End, modifier = Modifier.width(75.dp)) {

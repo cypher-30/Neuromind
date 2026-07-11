@@ -71,9 +71,6 @@ dependencies {
     // WorkManager (This was missing!)
     implementation(libs.androidx.work.runtime.ktx)
 
-    // Vico Chart
-    implementation(libs.vico.compose.m3)
-
     // Glance (home-screen widget)
     implementation(libs.androidx.glance.appwidget)
 

@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  In-app Neuromind logo: brain + node neural-network mark on transparent background.
-  White + WarmOrange — designed for use on the blue-gradient splash background.
+  In-app Neuromind logo: Orbital mark (planning-loop ring + center anchor +
+  today's-focus spark) on transparent background, designed for use on the
+  teal-gradient splash background.
   Viewport mirrors the launcher foreground so it scales identically at any Compose size.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
@@ -10,39 +11,31 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Brain silhouette -->
+    <!-- Faint fill disc behind the ring -->
     <path
-        android:fillColor="#33FFFFFF"
-        android:strokeColor="#EEFFFFFF"
-        android:strokeWidth="2.5"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:pathData="M 54,30 C 51,27 44,26 37,29 C 28,32 26,43 29,52 C 32,61 38,71 46,75 C 50,77 52,77 54,77 C 56,77 58,77 62,75 C 70,71 76,61 79,52 C 82,43 80,32 71,29 C 64,26 57,27 54,30 Z" />
+        android:fillColor="#0AFFFFFF"
+        android:pathData="M 27,54 a 27,27 0 1,0 54,0 a 27,27 0 1,0 -54,0 Z" />
 
-    <!-- Center fissure -->
+    <!-- Ring (the planning loop) -->
     <path
         android:fillColor="#00000000"
-        android:strokeColor="#88FFFFFF"
-        android:strokeWidth="1.8"
-        android:strokeLineCap="round"
-        android:pathData="M 54,30 L 54,77" />
+        android:strokeColor="#99FFFFFF"
+        android:strokeWidth="3"
+        android:pathData="M 27,54 a 27,27 0 1,0 54,0 a 27,27 0 1,0 -54,0 Z" />
 
-    <!-- Neural connection lines -->
+    <!-- Center anchor dot -->
     <path
-        android:fillColor="#00000000"
-        android:strokeColor="#BBFFFFFF"
-        android:strokeWidth="1.6"
-        android:strokeLineCap="round"
-        android:pathData="M 38,40 L 33,55 M 33,55 L 43,68 M 38,40 L 54,50 M 33,55 L 54,50 M 43,68 L 54,50 M 54,50 L 70,40 M 54,50 L 75,55 M 54,50 L 65,68 M 70,40 L 75,55 M 75,55 L 65,68" />
+        android:fillColor="#B3FFFFFF"
+        android:pathData="M 49,54 a 5,5 0 1,0 10,0 a 5,5 0 1,0 -10,0 Z" />
 
-    <!-- Regular nodes (white) -->
+    <!-- Spark halo -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M 34.5,40 A 3.5,3.5,0,1,0,41.5,40 A 3.5,3.5,0,1,0,34.5,40 Z M 29.5,55 A 3.5,3.5,0,1,0,36.5,55 A 3.5,3.5,0,1,0,29.5,55 Z M 39.5,68 A 3.5,3.5,0,1,0,46.5,68 A 3.5,3.5,0,1,0,39.5,68 Z M 66.5,40 A 3.5,3.5,0,1,0,73.5,40 A 3.5,3.5,0,1,0,66.5,40 Z M 71.5,55 A 3.5,3.5,0,1,0,78.5,55 A 3.5,3.5,0,1,0,71.5,55 Z M 61.5,68 A 3.5,3.5,0,1,0,68.5,68 A 3.5,3.5,0,1,0,61.5,68 Z" />
+        android:fillColor="#29F2884B"
+        android:pathData="M 55,34 a 17,17 0 1,0 34,0 a 17,17 0 1,0 -34,0 Z" />
 
-    <!-- Accent node (WarmOrange) at center -->
+    <!-- Spark (today's focus, always on the orbit) -->
     <path
-        android:fillColor="#F5A623"
-        android:pathData="M 49.5,50 A 4.5,4.5,0,1,0,58.5,50 A 4.5,4.5,0,1,0,49.5,50 Z" />
+        android:fillColor="#F2884B"
+        android:pathData="M 60.5,34 a 11.5,11.5 0 1,0 23,0 a 11.5,11.5 0 1,0 -23,0 Z" />
 
 </vector>

@@ -25,10 +25,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.alvin.neuromind.data.Task
+import com.alvin.neuromind.ui.components.NeuromindTopBar
 import kotlinx.coroutines.delay
 
 private enum class TimerState { Idle, Running, Paused }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FocusModeScreen(task: Task, viewModel: FocusViewModel, onFinish: () -> Unit) {
     val context = LocalContext.current
@@ -93,9 +95,20 @@ fun FocusModeScreen(task: Task, viewModel: FocusViewModel, onFinish: () -> Unit)
     val minutes = secondsLeft / 60
     val seconds = secondsLeft % 60
 
+    Scaffold(
+        topBar = {
+            NeuromindTopBar(
+                title = "",
+                onNavigateBack = onFinish,
+                useCloseIcon = true,
+                transparent = true
+            )
+        }
+    ) { innerPadding ->
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .padding(innerPadding)
             .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center
     ) {
@@ -211,6 +224,7 @@ fun FocusModeScreen(task: Task, viewModel: FocusViewModel, onFinish: () -> Unit)
                 }
             }
         }
+    }
     }
 }
 

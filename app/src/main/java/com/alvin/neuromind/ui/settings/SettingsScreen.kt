@@ -19,6 +19,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.alvin.neuromind.data.preferences.TaskStyle
 import com.alvin.neuromind.data.preferences.ThemeSetting
+import com.alvin.neuromind.ui.components.NeuromindTopBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -233,7 +234,7 @@ fun SettingsScreen(
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Settings") }) }
+        topBar = { NeuromindTopBar(title = "Settings") }
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(innerPadding)

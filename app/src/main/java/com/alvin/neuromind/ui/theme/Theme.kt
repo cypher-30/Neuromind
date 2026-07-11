@@ -16,16 +16,16 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary              = BrandBlueDark,
-    onPrimary            = Color(0xFF00207A),
+    primary              = BrandTealDark,
+    onPrimary            = Color(0xFF00332F),
     primaryContainer     = PrimaryContainerDark,
     onPrimaryContainer   = OnPrimaryContainerDark,
-    secondary            = BrandOrangeDark,
+    secondary            = BrandSunsetDark,
     onSecondary          = Color(0xFF4A2000),
     secondaryContainer   = SecondaryContainerDark,
     onSecondaryContainer = OnSecondaryContainerDark,
-    tertiary             = BrandTealDark,
-    onTertiary           = Color(0xFF003731),
+    tertiary             = BrandSeagreenDark,
+    onTertiary           = Color(0xFF00332B),
     tertiaryContainer    = TertiaryContainerDark,
     onTertiaryContainer  = OnTertiaryContainerDark,
     background           = DarkBackground,
@@ -42,15 +42,15 @@ private val DarkColorScheme = darkColorScheme(
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary              = BrandBlueLight,
+    primary              = BrandTealLight,
     onPrimary            = Color.White,
     primaryContainer     = PrimaryContainerLight,
     onPrimaryContainer   = OnPrimaryContainerLight,
-    secondary            = BrandOrangeLight,
-    onSecondary          = Color.White,
+    secondary            = BrandSunsetLight,
+    onSecondary          = Color(0xFF3D1D00),
     secondaryContainer   = SecondaryContainerLight,
     onSecondaryContainer = OnSecondaryContainerLight,
-    tertiary             = BrandTealLight,
+    tertiary             = BrandSeagreenLight,
     onTertiary           = Color.White,
     tertiaryContainer    = TertiaryContainerLight,
     onTertiaryContainer  = OnTertiaryContainerLight,

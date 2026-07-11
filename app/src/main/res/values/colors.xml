@@ -7,6 +7,6 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
-    <!-- System window background painted brand-blue before Compose draws (anti-flash) -->
-    <color name="splash_background">#FF3A5FE0</color>
+    <!-- System window background painted brand-teal before Compose draws (anti-flash) -->
+    <color name="splash_background">#FF0F7A85</color>
 </resources>

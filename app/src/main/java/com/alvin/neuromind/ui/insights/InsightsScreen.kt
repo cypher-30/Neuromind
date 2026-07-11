@@ -20,7 +20,6 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.TrackChanges
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -34,19 +33,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.alvin.neuromind.data.Mood
+import com.alvin.neuromind.ui.components.NeuromindTopBar
 import com.alvin.neuromind.domain.FocusSummary
 import com.alvin.neuromind.domain.RetroInsights
 import com.alvin.neuromind.domain.WeekStat
-import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
-import com.patrykandpatrick.vico.compose.axis.vertical.rememberStartAxis
-import com.patrykandpatrick.vico.compose.chart.Chart
-import com.patrykandpatrick.vico.compose.chart.column.columnChart
-import com.patrykandpatrick.vico.compose.component.lineComponent
-import com.patrykandpatrick.vico.core.axis.AxisPosition
-import com.patrykandpatrick.vico.core.axis.formatter.AxisValueFormatter
-import com.patrykandpatrick.vico.core.chart.values.ChartValues
-import com.patrykandpatrick.vico.core.entry.ChartEntryModelProducer
-import com.patrykandpatrick.vico.core.entry.FloatEntry
 import java.text.SimpleDateFormat
 import java.time.DayOfWeek
 import java.util.Date
@@ -58,7 +48,7 @@ fun InsightsScreen(viewModel: InsightsViewModel) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Productivity Insights") }) }
+        topBar = { NeuromindTopBar(title = "Productivity Insights") }
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(innerPadding),
@@ -84,7 +74,7 @@ fun InsightsScreen(viewModel: InsightsViewModel) {
                         label = "Avg Energy",
                         value = "${uiState.averageEnergy}/5",
                         icon = Icons.Default.Bolt,
-                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        color = MaterialTheme.colorScheme.surfaceVariant,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -97,86 +87,11 @@ fun InsightsScreen(viewModel: InsightsViewModel) {
                         Text("Tasks Completed", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        if (uiState.completionData.isEmpty()) {
-                            Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
-                                Text("No activity recorded yet.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        } else {
-                            val maxCount = remember(uiState.completionData) {
-                                uiState.completionData.maxOfOrNull { it.second } ?: 1
-                            }
-                            val scaleBase = if (maxCount == 0) 1 else maxCount
-
-                            // Split into two rows so labels are NEVER clipped by bar height
-                            Column {
-                                // ── Bars zone (fixed 120dp, bottom-aligned) ──────────
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(120.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.Bottom
-                                ) {
-                                    uiState.completionData.forEach { (day, count) ->
-                                        val rawFraction = count.toFloat() / scaleBase.toFloat()
-                                        val targetFraction = if (rawFraction.isNaN()) 0.05f
-                                                             else rawFraction.coerceIn(0.05f, 1f)
-                                        val animFraction by animateFloatAsState(
-                                            targetValue = targetFraction,
-                                            animationSpec = spring(
-                                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                                stiffness    = Spring.StiffnessLow
-                                            ),
-                                            label = "bar_$day"
-                                        )
-                                        Column(
-                                            horizontalAlignment = Alignment.CenterHorizontally,
-                                            verticalArrangement = Arrangement.Bottom,
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .fillMaxHeight()
-                                        ) {
-                                            if (count > 0) {
-                                                Text(
-                                                    text = count.toString(),
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = MaterialTheme.colorScheme.primary,
-                                                    fontWeight = FontWeight.Bold
-                                                )
-                                                Spacer(modifier = Modifier.height(4.dp))
-                                            }
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxWidth(0.6f)
-                                                    .fillMaxHeight(animFraction)
-                                                    .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                                                    .background(
-                                                        if (count > 0) MaterialTheme.colorScheme.primary
-                                                        else MaterialTheme.colorScheme.surfaceVariant
-                                                    )
-                                            )
-                                        }
-                                    }
-                                }
-
-                                // ── Labels row (always fully visible) ────────────────
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    uiState.completionData.forEach { (day, _) ->
-                                        Text(
-                                            text = day,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            textAlign = TextAlign.Center,
-                                            maxLines = 1,
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                    }
-                                }
-                            }
-                        }
+                        AnimatedBarChart(
+                            entries = uiState.completionData.map { (day, count) -> day to count.toFloat() },
+                            valueLabel = { it.toInt().toString() },
+                            emptyMessage = "No activity recorded yet."
+                        )
                     }
                 }
             }
@@ -271,26 +186,6 @@ fun InsightsScreen(viewModel: InsightsViewModel) {
 
 @Composable
 private fun WeeklyTrendCard(weeklyTrend: List<WeekStat>) {
-    val producer = remember { ChartEntryModelProducer() }
-
-    LaunchedEffect(weeklyTrend) {
-        if (weeklyTrend.isNotEmpty()) {
-            producer.setEntries(weeklyTrend.mapIndexed { index, stat ->
-                FloatEntry(index.toFloat(), stat.completionPct * 100f)
-            })
-        }
-    }
-
-    val weekLabels = remember(weeklyTrend) { weeklyTrend.map { it.weekLabel } }
-    val weekLabelFormatter = remember(weekLabels) {
-        object : AxisValueFormatter<AxisPosition.Horizontal.Bottom> {
-            override fun formatValue(value: Float, chartValues: ChartValues): CharSequence =
-                weekLabels.getOrElse(value.toInt()) { value.toInt().toString() }
-        }
-    }
-
-    val primaryColor = MaterialTheme.colorScheme.primary
-
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -310,20 +205,99 @@ private fun WeeklyTrendCard(weeklyTrend: List<WeekStat>) {
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            if (weeklyTrend.isNotEmpty()) {
-                Chart(
-                    chart = columnChart(
-                        columns = listOf(
-                            lineComponent(
-                                color     = primaryColor,
-                                thickness = 16.dp
-                            )
-                        )
+            AnimatedBarChart(
+                entries = weeklyTrend.map { it.weekLabel to (it.completionPct * 100f) },
+                valueLabel = { "${it.toInt()}%" },
+                emptyMessage = "No trend data yet."
+            )
+        }
+    }
+}
+
+// Shared bar-chart grammar for Insights — used by "Tasks Completed" (raw counts)
+// and "Your Streak" (percentages); keeps every chart on this screen visually
+// consistent instead of mixing this with a separately-themed charting library.
+@Composable
+private fun AnimatedBarChart(
+    entries: List<Pair<String, Float>>,
+    valueLabel: (Float) -> String,
+    emptyMessage: String,
+    modifier: Modifier = Modifier
+) {
+    if (entries.isEmpty()) {
+        Box(modifier = modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
+            Text(emptyMessage, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        return
+    }
+
+    val maxValue = remember(entries) { entries.maxOfOrNull { it.second } ?: 1f }
+    val scaleBase = if (maxValue == 0f) 1f else maxValue
+
+    Column(modifier = modifier) {
+        // ── Bars zone (fixed 120dp, bottom-aligned) ──────────
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(120.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Bottom
+        ) {
+            entries.forEach { (label, value) ->
+                val rawFraction = value / scaleBase
+                val targetFraction = if (rawFraction.isNaN()) 0.05f
+                                     else rawFraction.coerceIn(0.05f, 1f)
+                val animFraction by animateFloatAsState(
+                    targetValue = targetFraction,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness    = Spring.StiffnessLow
                     ),
-                    chartModelProducer = producer,
-                    startAxis  = rememberStartAxis(),
-                    bottomAxis = rememberBottomAxis(valueFormatter = weekLabelFormatter),
-                    modifier   = Modifier.fillMaxWidth().height(150.dp)
+                    label = "bar_$label"
+                )
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Bottom,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                ) {
+                    if (value > 0f) {
+                        Text(
+                            text = valueLabel(value),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(0.6f)
+                            .fillMaxHeight(animFraction)
+                            .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                            .background(
+                                if (value > 0f) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.surfaceVariant
+                            )
+                    )
+                }
+            }
+        }
+
+        // ── Labels row (always fully visible) ────────────────
+        Spacer(modifier = Modifier.height(6.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            entries.forEach { (label, _) ->
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelSmall,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f)
                 )
             }
         }

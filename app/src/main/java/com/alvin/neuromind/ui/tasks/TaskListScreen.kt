@@ -31,6 +31,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.alvin.neuromind.data.Priority
 import com.alvin.neuromind.data.Task
+import com.alvin.neuromind.ui.components.NeuromindTopBar
+import com.alvin.neuromind.ui.theme.priorityColor
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -53,6 +55,9 @@ fun TaskListScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
+        topBar = {
+            NeuromindTopBar(title = if (isRescheduleMode) "Reschedule Tasks" else "Tasks")
+        },
         floatingActionButton = {
             if (!isRescheduleMode) {
                 FloatingActionButton(onClick = onAddTaskClicked) {
@@ -190,11 +195,7 @@ fun TaskCard(
     onFocusClick: () -> Unit,
     isBlocked: Boolean = false
 ) {
-    val priorityColor = when (task.priority) {
-        Priority.HIGH -> MaterialTheme.colorScheme.error
-        Priority.MEDIUM -> MaterialTheme.colorScheme.tertiary
-        Priority.LOW -> MaterialTheme.colorScheme.secondary
-    }
+    val priorityColor = priorityColor(task.priority)
 
     Card(
         modifier = Modifier

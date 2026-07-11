@@ -13,7 +13,6 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -121,7 +120,7 @@ fun NeuromindApp(
                             viewModel = vm,
                             onNavigateToTasks = { navController.navigate(Screen.TaskList.withArgs(true)) },
                             onNavigateToTimetable = { navController.navigate(Screen.Timetable.route) },
-                            onNavigateToFeedback = { navController.navigate(Screen.Feedback.route) },
+                            onNavigateToAssistant = { navController.navigate(Screen.Assistant.route) },
                             onNavigateToTask = { taskId ->
                                 navController.navigate(Screen.AddEditTask.route + "?taskId=$taskId")
                             }
@@ -220,6 +219,7 @@ fun NeuromindApp(
                         val vm = viewModel<AssistantViewModel>(factory = factory)
                         AssistantScreen(
                             viewModel = vm,
+                            onNavigateBack = { navController.popBackStack() },
                             onNavigateToFocus = { taskId ->
                                 navController.navigate(Screen.FocusMode.route + "/$taskId")
                             },
@@ -239,7 +239,6 @@ private fun BottomNavBar(navController: NavController) {
     val navItems = listOf(
         NavItem(Screen.Dashboard, "Home", Icons.Default.Dashboard),
         NavItem(Screen.TaskList, "Tasks", Icons.AutoMirrored.Filled.List),
-        NavItem(Screen.Assistant, "Ask", Icons.Default.SmartToy),
         NavItem(Screen.Insights, "Insights", Icons.Default.BarChart),
         NavItem(Screen.Settings, "Settings", Icons.Default.Settings)
     )

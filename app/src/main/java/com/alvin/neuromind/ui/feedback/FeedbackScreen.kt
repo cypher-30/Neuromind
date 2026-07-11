@@ -5,7 +5,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -14,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.alvin.neuromind.data.FeedbackLog
 import com.alvin.neuromind.data.Mood
+import com.alvin.neuromind.ui.components.NeuromindTopBar
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -34,14 +34,7 @@ fun FeedbackScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Daily Review") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
-                    }
-                }
-            )
+            NeuromindTopBar(title = "Daily Review", onNavigateBack = onNavigateBack)
         }
     ) { padding ->
         Column(

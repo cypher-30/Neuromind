@@ -16,11 +16,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.alvin.neuromind.domain.AssistantAction
+import com.alvin.neuromind.ui.components.NeuromindTopBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AssistantScreen(
     viewModel: AssistantViewModel,
+    onNavigateBack: () -> Unit,
     onNavigateToFocus: (Int) -> Unit,
     onNavigateToTasks: () -> Unit,
     onNavigateToTimetable: () -> Unit,
@@ -51,7 +53,7 @@ fun AssistantScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Ask Neuromind") })
+            NeuromindTopBar(title = "Ask Neuromind", onNavigateBack = onNavigateBack)
         }
     ) { innerPadding ->
         Column(
