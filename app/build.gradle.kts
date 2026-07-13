@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.ksp)
     alias(libs.plugins.kotlin.compose.compiler)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -62,6 +63,9 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
+
+    // Backup & Restore (JSON export/import)
+    implementation(libs.kotlinx.serialization.json)
 
     // ViewModel + lifecycle-aware state collection
     implementation(libs.androidx.lifecycle.viewmodel.compose)
