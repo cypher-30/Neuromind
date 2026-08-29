@@ -16,4 +16,7 @@ interface TimetableDao {
 
     @Query("SELECT * FROM timetable_entries ORDER BY dayOfWeek, startTime")
     fun getAllEntries(): Flow<List<TimetableEntry>>
+
+    @Query("DELETE FROM timetable_entries")
+    suspend fun deleteAllEntries()
 }

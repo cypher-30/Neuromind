@@ -2,6 +2,7 @@ package com.alvin.neuromind.data
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 enum class Mood(val score: Int) {
     STRESSED(1),
@@ -11,6 +12,7 @@ enum class Mood(val score: Int) {
     GREAT(5)
 }
 
+@Serializable
 @Entity(tableName = "feedback_logs")
 data class FeedbackLog(
     @PrimaryKey(autoGenerate = true)

@@ -1,14 +1,18 @@
 package com.alvin.neuromind.ui.settings
 
 import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.alvin.neuromind.data.*
+import com.alvin.neuromind.data.backup.BackupData
 import com.alvin.neuromind.data.preferences.*
 import com.alvin.neuromind.domain.NotificationHelper
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.time.DayOfWeek
 import java.time.LocalTime
 import kotlin.random.Random
@@ -213,6 +217,35 @@ class SettingsViewModel(
     /** Wipes only the focus_sessions table. */
     fun clearFocusSessions() = viewModelScope.launch {
         repository.deleteAllFocusSessions()
+    }
+
+    private val _backupMessage = MutableStateFlow<String?>(null)
+    val backupMessage: StateFlow<String?> = _backupMessage.asStateFlow()
+
+    fun clearBackupMessage() {
+        _backupMessage.value = null
+    }
+
+    fun exportBackup(context: Context, uri: Uri) = viewModelScope.launch {
+        _backupMessage.value = try {
+            val json = Json.encodeToString(repository.exportAll())
+            context.contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray()) }
+                ?: error("Could not open the selected file for writing")
+            "Backup saved"
+        } catch (e: Exception) {
+            "Export failed: ${e.message}"
+        }
+    }
+
+    fun importBackup(context: Context, uri: Uri) = viewModelScope.launch {
+        _backupMessage.value = try {
+            val json = context.contentResolver.openInputStream(uri)?.use { it.readBytes().decodeToString() }
+                ?: error("Could not open the selected file for reading")
+            repository.importAll(Json.decodeFromString<BackupData>(json))
+            "Backup restored"
+        } catch (e: Exception) {
+            "Restore failed: ${e.message}"
+        }
     }
 }
 

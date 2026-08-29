@@ -1,6 +1,8 @@
 package com.alvin.neuromind.ui.settings
 
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -20,6 +22,9 @@ import androidx.compose.ui.unit.dp
 import com.alvin.neuromind.data.preferences.TaskStyle
 import com.alvin.neuromind.data.preferences.ThemeSetting
 import com.alvin.neuromind.ui.components.NeuromindTopBar
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,6 +40,7 @@ fun SettingsScreen(
     val currentTaskStyle by viewModel.taskStyle.collectAsStateWithLifecycle()
 
     val appInfo by viewModel.appInfo.collectAsStateWithLifecycle()
+    val backupMessage by viewModel.backupMessage.collectAsStateWithLifecycle()
 
     var showThemeDialog by remember { mutableStateOf(false) }
     var showPeakHoursDialog by remember { mutableStateOf(false) }
@@ -42,11 +48,27 @@ fun SettingsScreen(
     var showTaskStyleDialog by remember { mutableStateOf(false) }
     var showResetConfirmation by remember { mutableStateOf(false) }
     var showAppInfoDialog by remember { mutableStateOf(false) }
+    var showRestoreConfirmation by remember { mutableStateOf(false) }
 
     // Developer Mode State
     var devModeClicks by remember { mutableIntStateOf(0) }
     var isDevModeEnabled by remember { mutableStateOf(false) }
     val context = LocalContext.current
+
+    LaunchedEffect(backupMessage) {
+        backupMessage?.let {
+            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+            viewModel.clearBackupMessage()
+        }
+    }
+
+    val exportBackupLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri -> uri?.let { viewModel.exportBackup(context, it) } }
+
+    val restoreBackupLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri -> uri?.let { viewModel.importBackup(context, it) } }
 
     if (showThemeDialog) {
         AlertDialog(
@@ -233,6 +255,25 @@ fun SettingsScreen(
         )
     }
 
+    if (showRestoreConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showRestoreConfirmation = false },
+            icon = { Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+            title = { Text("Restore from backup?") },
+            text = { Text("This replaces all current tasks, timetable, feedback, and focus history with the contents of the selected file. This can't be undone.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showRestoreConfirmation = false
+                        restoreBackupLauncher.launch(arrayOf("application/json"))
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Restore") }
+            },
+            dismissButton = { TextButton(onClick = { showRestoreConfirmation = false }) { Text("Cancel") } }
+        )
+    }
+
     Scaffold(
         topBar = { NeuromindTopBar(title = "Settings") }
     ) { innerPadding ->
@@ -293,6 +334,28 @@ fun SettingsScreen(
                     title = "End-of-Day Review",
                     onClick = onNavigateToFeedback,
                     showArrow = true
+                )
+            }
+
+            // Section: Data (backup & restore — user-visible, not a dev tool)
+            item { SettingsSectionHeader("Data") }
+            item {
+                SettingsItem(
+                    icon = Icons.Default.FileDownload,
+                    title = "Export backup",
+                    subtitle = "Save all tasks, timetable, feedback, and focus history to a file",
+                    onClick = {
+                        val timestamp = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+                        exportBackupLauncher.launch("neuromind_backup_$timestamp.json")
+                    }
+                )
+            }
+            item {
+                SettingsItem(
+                    icon = Icons.Default.FileUpload,
+                    title = "Restore backup",
+                    subtitle = "Replace current data with a previously exported file",
+                    onClick = { showRestoreConfirmation = true }
                 )
             }
 

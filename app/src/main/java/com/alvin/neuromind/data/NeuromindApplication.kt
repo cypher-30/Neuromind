@@ -22,7 +22,7 @@ class NeuromindApplication : Application(), Configuration.Provider {
     val applicationScope = CoroutineScope(SupervisorJob())
 
     val database by lazy { NeuromindDatabase.getDatabase(this, applicationScope) }
-    val repository by lazy { TaskRepository(database.taskDao(), database.timetableDao(), database.feedbackLogDao(), database.focusSessionDao()) }
+    val repository by lazy { TaskRepository(database, database.taskDao(), database.timetableDao(), database.feedbackLogDao(), database.focusSessionDao()) }
     val scheduler by lazy { Scheduler() }
     val userPreferencesRepository by lazy { UserPreferencesRepository(this) }
 

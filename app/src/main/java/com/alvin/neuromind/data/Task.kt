@@ -2,10 +2,12 @@ package com.alvin.neuromind.data
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 enum class Priority { LOW, MEDIUM, HIGH }
 enum class Difficulty { EASY, MEDIUM, HARD }
 
+@Serializable
 @Entity(tableName = "tasks")
 data class Task(
     @PrimaryKey(autoGenerate = true)
