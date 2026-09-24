@@ -16,11 +16,13 @@ class SuggestionWorker(
         val repository = application.repository
         val userPrefs = application.userPreferencesRepository
 
+        if (!userPrefs.notificationsEnabled.first()) return Result.success()
         val tasks = repository.allTasks.first()
         val timetable = repository.allTimetableEntries.first()
+        val feedbackLogs = repository.allFeedbackLogs.first()
         val profile = userPrefs.cognitiveProfile.first()
 
-        val suggestion = SuggestionEngine.suggest(tasks, timetable, profile) ?: return Result.success()
+        val suggestion = SuggestionEngine.suggest(tasks, timetable, profile, feedbackLogs) ?: return Result.success()
 
         NotificationHelper(applicationContext).showNotification(
             id = SUGGESTION_NOTIFICATION_ID,

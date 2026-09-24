@@ -22,6 +22,9 @@ class TaskCheckWorker(
         val repository = application.repository
         val notificationHelper = NotificationHelper(applicationContext)
 
+        // Respect the in-app Notifications switch (Settings / onboarding).
+        if (!application.userPreferencesRepository.notificationsEnabled.first()) return Result.success()
+
         // 1. Check Tasks Due Soon
         // We look ahead 45 minutes to ensure we catch tasks even if the worker runs slightly late
         val nowMillis = System.currentTimeMillis()
@@ -55,7 +58,9 @@ class TaskCheckWorker(
         val checkWindowTime = timeNow.plusMinutes(45)
 
         val allEntries = repository.allTimetableEntries.first()
-        val todaysEntries = allEntries.filter { it.dayOfWeek == today.dayOfWeek }
+        // Dated events with a reminder setting get exact alarms (EventReminderScheduler);
+        // only legacy entries (reminderMode == null) are still polled here.
+        val todaysEntries = allEntries.filter { it.occursOn(today) && !it.isAllDay && it.reminderMode == null }
 
         todaysEntries.forEach { entry ->
             // Check if start time is in the future AND within check window
@@ -65,7 +70,7 @@ class TaskCheckWorker(
                 val timeString = entry.startTime.format(DateTimeFormatter.ofPattern("h:mm a"))
 
                 notificationHelper.showNotification(
-                    id = entry.id.hashCode(),
+                    id = NotificationHelper.TIMETABLE_NOTIFICATION_BASE + entry.id,
                     title = "Upcoming: ${entry.title}",
                     message = "Starts at $timeString (in ~$minutesUntilClass mins) @ ${entry.venue ?: "Unknown Venue"}"
                 )
