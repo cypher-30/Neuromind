@@ -22,4 +22,24 @@ object DailyProgressCalculator {
         val dueToday = tasks.filter { task -> task.dueDate != null && task.dueDate >= start && task.dueDate < end }
         return DailyProgress(total = dueToday.size, completed = dueToday.count { it.isCompleted })
     }
+
+    /**
+     * "All due tasks": every open task with a due date (overdue or upcoming),
+     * plus tasks already finished whose due date is today or later. Completed
+     * tasks due in the past are history and are left out, so this never turns
+     * into a lifetime total.
+     */
+    fun allDue(tasks: List<Task>, date: LocalDate, zone: ZoneId = ZoneId.systemDefault()): DueOverview {
+        val start = date.atStartOfDay(zone).toInstant().toEpochMilli()
+        val dated = tasks.filter { it.dueDate != null }
+        val open = dated.filter { !it.isCompleted }
+        val doneAhead = dated.count { it.isCompleted && it.dueDate!! >= start }
+        return DueOverview(
+            progress = DailyProgress(total = open.size + doneAhead, completed = doneAhead),
+            overdue = open.count { it.dueDate!! < start },
+            upcoming = open.count { it.dueDate!! >= start }
+        )
+    }
 }
+
+data class DueOverview(val progress: DailyProgress, val overdue: Int, val upcoming: Int)
