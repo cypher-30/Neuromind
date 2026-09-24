@@ -60,4 +60,31 @@ class DailyProgressTest {
         assertEquals(1, DailyProgressCalculator.forDate(tasks, today, zone).total)
         assertEquals(0, DailyProgressCalculator.forDate(tasks, today.plusDays(1), zone).total)
     }
+
+    @Test
+    fun `all due counts open dated tasks and finished ones not yet past`() {
+        val tasks = listOf(
+            Task(id = 1, title = "Overdue open", dueDate = due(today.minusDays(2))),
+            Task(id = 2, title = "Today open", dueDate = due(today)),
+            Task(id = 3, title = "Next week open", dueDate = due(today.plusDays(7))),
+            Task(id = 4, title = "Done ahead", dueDate = due(today.plusDays(2)), isCompleted = true),
+            Task(id = 5, title = "Done today", dueDate = due(today, LocalTime.MIDNIGHT), isCompleted = true),
+            Task(id = 6, title = "Done long ago", dueDate = due(today.minusDays(30)), isCompleted = true),
+            Task(id = 7, title = "Undated open"),
+            Task(id = 8, title = "Undated done", isCompleted = true)
+        )
+
+        val overview = DailyProgressCalculator.allDue(tasks, today, zone)
+
+        assertEquals(DailyProgress(total = 5, completed = 2), overview.progress)
+        assertEquals(1, overview.overdue)
+        assertEquals(2, overview.upcoming)
+    }
+
+    @Test
+    fun `all due with nothing dated is empty`() {
+        val overview = DailyProgressCalculator.allDue(listOf(Task(id = 1, title = "Someday")), today, zone)
+
+        assertEquals(DueOverview(DailyProgress(0, 0), 0, 0), overview)
+    }
 }

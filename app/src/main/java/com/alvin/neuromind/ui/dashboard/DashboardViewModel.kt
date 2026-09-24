@@ -13,6 +13,7 @@ import com.alvin.neuromind.domain.BurnoutAnalyzer
 import com.alvin.neuromind.domain.BurnoutState
 import com.alvin.neuromind.domain.DailyProgress
 import com.alvin.neuromind.domain.DailyProgressCalculator
+import com.alvin.neuromind.domain.DueOverview
 import com.alvin.neuromind.domain.RebalanceProposal
 import com.alvin.neuromind.domain.Scheduler
 import com.alvin.neuromind.domain.Suggestion
@@ -38,6 +39,8 @@ data class DashboardUiState(
     val currentDate: String = "",
     /** Today's due tasks only (see DailyProgressCalculator). */
     val todayProgress: DailyProgress = DailyProgress(total = 0, completed = 0),
+    /** Every open dated task plus ones finished ahead of time (second face of the progress card). */
+    val allDue: DueOverview = DueOverview(DailyProgress(0, 0), overdue = 0, upcoming = 0),
     val priorityTasks: List<Task> = emptyList(),
     /** Classes/events in progress right now (all-day events count for the whole day). */
     val happeningNow: List<TimetableEntry> = emptyList(),
@@ -120,6 +123,7 @@ class DashboardViewModel(
             greeting = getGreeting(),
             currentDate = today.format(DateTimeFormatter.ofPattern("EEEE, MMM d")),
             todayProgress = DailyProgressCalculator.forDate(tasks, today),
+            allDue = DailyProgressCalculator.allDue(tasks, today),
             priorityTasks = priorityList,
             happeningNow = happeningNow,
             upcomingEvents = eventsToday,

@@ -1,6 +1,22 @@
 package com.alvin.neuromind.ui.dashboard
 
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.alvin.neuromind.domain.DailyProgress
+import com.alvin.neuromind.domain.DueOverview
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -117,12 +133,9 @@ fun DashboardScreen(
             }
         }
 
-        // Today's progress
+        // Progress — rotates between today's due tasks and all due tasks
         item {
-            ProgressCard(
-                completed = uiState.todayProgress.completed,
-                total = uiState.todayProgress.total
-            )
+            ProgressCard(today = uiState.todayProgress, allDue = uiState.allDue)
         }
 
         // Happening now, then Up next — both above coaching and priorities
@@ -220,40 +233,112 @@ private fun StreakPill(days: Int) {
     }
 }
 
+private data class ProgressFace(val title: String, val progress: DailyProgress, val subtitle: String)
+
+private const val PROGRESS_ROTATE_MS = 6_000L
+
+@OptIn(ExperimentalAnimationApi::class)
 @Composable
-private fun ProgressCard(completed: Int, total: Int) {
-    val progress = if (total > 0) completed.toFloat() / total else 0f
-    OrganicCard(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("Today's progress", style = MaterialTheme.typography.titleLarge)
-            Text(
-                "$completed of $total done",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        if (total == 0) {
-            Spacer(Modifier.height(6.dp))
-            Text(
-                "No tasks due today",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+private fun ProgressCard(today: DailyProgress, allDue: DueOverview) {
+    val faces = listOf(
+        ProgressFace(
+            title = "Today's progress",
+            progress = today,
+            subtitle = when {
+                today.total == 0 -> "No tasks due today"
+                today.pending == 0 -> "Everything due today is done"
+                else -> "${today.pending} left for today"
+            }
+        ),
+        ProgressFace(
+            title = "All due tasks",
+            progress = allDue.progress,
+            subtitle = if (allDue.progress.total == 0) "No tasks due"
+            else listOfNotNull(
+                allDue.overdue.takeIf { it > 0 }?.let { "$it overdue" },
+                allDue.upcoming.takeIf { it > 0 }?.let { "$it upcoming" }
+            ).ifEmpty { listOf("All caught up") }.joinToString(" · ")
+        )
+    )
+    var index by rememberSaveable { mutableIntStateOf(0) }
+    // Restarting on every index change means a tap also resets the timer.
+    LaunchedEffect(index) {
+        delay(PROGRESS_ROTATE_MS)
+        index = (index + 1) % faces.size
+    }
+    val face = faces[index]
+    val animatedFraction by animateFloatAsState(
+        targetValue = face.progress.fraction,
+        animationSpec = tween(durationMillis = 700, easing = FastOutSlowInEasing),
+        label = "progress_fraction"
+    )
+
+    OrganicCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { index = (index + 1) % faces.size }
+    ) {
+        AnimatedContent(
+            targetState = index,
+            transitionSpec = {
+                (slideInVertically(tween(450)) { it / 2 } + fadeIn(tween(450)))
+                    .togetherWith(slideOutVertically(tween(350)) { -it / 2 } + fadeOut(tween(250)))
+                    .using(SizeTransform(clip = false))
+            },
+            label = "progress_face"
+        ) { i ->
+            val f = faces[i]
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(f.title, style = MaterialTheme.typography.titleLarge)
+                    Text(
+                        "${f.progress.completed} of ${f.progress.total} done",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    f.subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
         Spacer(Modifier.height(14.dp))
         LinearProgressIndicator(
-            progress = { progress },
+            progress = { animatedFraction },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(10.dp)
                 .clip(Pill),
             color = MaterialTheme.colorScheme.primary,
             trackColor = MaterialTheme.colorScheme.outlineVariant,
+            drawStopIndicator = {}
         )
+        Spacer(Modifier.height(10.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally)
+        ) {
+            faces.indices.forEach { i ->
+                val width by animateDpAsState(if (i == index) 18.dp else 6.dp, tween(300), label = "dot_$i")
+                Box(
+                    Modifier
+                        .height(6.dp)
+                        .width(width)
+                        .clip(Pill)
+                        .background(
+                            if (i == index) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.outlineVariant
+                        )
+                )
+            }
+        }
     }
 }
 
