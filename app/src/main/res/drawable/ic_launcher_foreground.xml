@@ -4,34 +4,21 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-
-    <!-- Orbital mark: planning-loop ring + center anchor + today's-focus spark -->
-
-    <!-- Faint fill disc behind the ring -->
-    <path
-        android:fillColor="#0AFFFFFF"
-        android:pathData="M 27,54 a 27,27 0 1,0 54,0 a 27,27 0 1,0 -54,0 Z" />
-
-    <!-- Ring (the planning loop) -->
-    <path
-        android:fillColor="#00000000"
-        android:strokeColor="#99FFFFFF"
-        android:strokeWidth="3"
-        android:pathData="M 27,54 a 27,27 0 1,0 54,0 a 27,27 0 1,0 -54,0 Z" />
-
-    <!-- Center anchor dot -->
-    <path
-        android:fillColor="#B3FFFFFF"
-        android:pathData="M 49,54 a 5,5 0 1,0 10,0 a 5,5 0 1,0 -10,0 Z" />
-
-    <!-- Spark halo -->
-    <path
-        android:fillColor="#29F2884B"
-        android:pathData="M 55,34 a 17,17 0 1,0 34,0 a 17,17 0 1,0 -34,0 Z" />
-
-    <!-- Spark (today's focus, always on the orbit) -->
-    <path
-        android:fillColor="#F2884B"
-        android:pathData="M 60.5,34 a 11.5,11.5 0 1,0 23,0 a 11.5,11.5 0 1,0 -23,0 Z" />
+    <!-- Scaled to the adaptive icon safe zone (~66dp visual core). -->
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.72"
+        android:scaleY="0.72">
+        <path
+            android:fillColor="#FFC67139"
+            android:pathData="M13.5,52.2a36,36 0 1,0 72,0a36,36 0 1,0 -72,0z" />
+        <path
+            android:fillColor="#FF7A8A5E"
+            android:pathData="M50.4,73.8a21.6,21.6 0 1,0 43.2,0a21.6,21.6 0 1,0 -43.2,0z" />
+        <path
+            android:fillColor="#FFFFC6A5"
+            android:pathData="M20.7,24.3a6.3,6.3 0 1,0 12.6,0a6.3,6.3 0 1,0 -12.6,0z" />
+    </group>
 
 </vector>

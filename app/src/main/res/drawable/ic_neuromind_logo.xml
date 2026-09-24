@@ -1,41 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  In-app Neuromind logo: Orbital mark (planning-loop ring + center anchor +
-  today's-focus spark) on transparent background, designed for use on the
-  teal-gradient splash background.
-  Viewport mirrors the launcher foreground so it scales identically at any Compose size.
+  Neuromind brand mark, "Organic" design system: three circles — a large
+  terracotta disc, an overlapping sage disc, and a small accent-light spark —
+  on the cream splash background. Matches Neuromind.dc.html's splash SVG
+  (viewBox 0 0 120 120) so it scales identically at any Compose size.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
 
-    <!-- Faint fill disc behind the ring -->
+    <!-- Large terracotta disc -->
     <path
-        android:fillColor="#0AFFFFFF"
-        android:pathData="M 27,54 a 27,27 0 1,0 54,0 a 27,27 0 1,0 -54,0 Z" />
+        android:fillColor="#C67139"
+        android:pathData="M 55,58 m -40,0 a 40,40 0 1,0 80,0 a 40,40 0 1,0 -80,0 Z" />
 
-    <!-- Ring (the planning loop) -->
+    <!-- Overlapping sage disc -->
     <path
-        android:fillColor="#00000000"
-        android:strokeColor="#99FFFFFF"
-        android:strokeWidth="3"
-        android:pathData="M 27,54 a 27,27 0 1,0 54,0 a 27,27 0 1,0 -54,0 Z" />
+        android:fillColor="#7A8A5E"
+        android:pathData="M 80,82 m -24,0 a 24,24 0 1,0 48,0 a 24,24 0 1,0 -48,0 Z" />
 
-    <!-- Center anchor dot -->
+    <!-- Small accent-light spark -->
     <path
-        android:fillColor="#B3FFFFFF"
-        android:pathData="M 49,54 a 5,5 0 1,0 10,0 a 5,5 0 1,0 -10,0 Z" />
-
-    <!-- Spark halo -->
-    <path
-        android:fillColor="#29F2884B"
-        android:pathData="M 55,34 a 17,17 0 1,0 34,0 a 17,17 0 1,0 -34,0 Z" />
-
-    <!-- Spark (today's focus, always on the orbit) -->
-    <path
-        android:fillColor="#F2884B"
-        android:pathData="M 60.5,34 a 11.5,11.5 0 1,0 23,0 a 11.5,11.5 0 1,0 -23,0 Z" />
+        android:fillColor="#FFC6A5"
+        android:pathData="M 30,27 m -7,0 a 7,7 0 1,0 14,0 a 7,7 0 1,0 -14,0 Z" />
 
 </vector>

@@ -1,30 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  Android 13+ themed (monochrome) icon: the Orbital mark in a single flat
-  color with no gradients/opacity — the system applies its own
-  wallpaper-extracted tint automatically.
--->
+<!-- Android 13+ themed icon for the Organic three-circle mark. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-
-    <!-- Ring (the planning loop) -->
-    <path
-        android:fillColor="#00000000"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="3"
-        android:pathData="M 27,54 a 27,27 0 1,0 54,0 a 27,27 0 1,0 -54,0 Z" />
-
-    <!-- Center anchor dot -->
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M 49,54 a 5,5 0 1,0 10,0 a 5,5 0 1,0 -10,0 Z" />
-
-    <!-- Spark (today's focus, always on the orbit) -->
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M 60.5,34 a 11.5,11.5 0 1,0 23,0 a 11.5,11.5 0 1,0 -23,0 Z" />
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.72"
+        android:scaleY="0.72">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M13.5,52.2a36,36 0 1,0 72,0a36,36 0 1,0 -72,0z" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M50.4,73.8a21.6,21.6 0 1,0 43.2,0a21.6,21.6 0 1,0 -43.2,0z" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M20.7,24.3a6.3,6.3 0 1,0 12.6,0a6.3,6.3 0 1,0 -12.6,0z" />
+    </group>
 
 </vector>

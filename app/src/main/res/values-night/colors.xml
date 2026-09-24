@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Match dark theme background during platform splash to avoid bright flash. -->
+    <color name="splash_background">#FF2E2B25</color>
+</resources>
+
