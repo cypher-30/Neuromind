@@ -1,3 +1,44 @@
 <resources>
     <string name="app_name">Neuromind</string>
+    <string name="widget_today_label">Today Priorities</string>
+    <string name="widget_quick_actions_label">Quick Actions</string>
+    <string name="widget_focus_label">Focus Shortcuts</string>
+    <string name="widget_next_class_label">Next Class</string>
+    <string name="widget_progress_label">Daily Progress</string>
+    <string name="widget_streak_label">Streak and Wellbeing</string>
+    <string name="widget_suggestion_label">Smart Suggestion</string>
+    <string name="widget_heatmap_label">Activity Heatmap</string>
+    <string name="widget_academic_label">Academic Tasks</string>
+    <string name="widget_motivator_label">Motivator</string>
+    <string name="widget_stack_15_label">Auto Stack 15m</string>
+    <string name="widget_stack_30_label">Auto Stack 30m</string>
+    <string name="widget_stack_60_label">Auto Stack 60m</string>
+    <string name="widget_stack_auto_label">Auto Stack (Configurable)</string>
+    <string name="widget_mini_quick_log_label">Mini Quick Log 1x1</string>
+    <string name="widget_mini_status_label">Mini Status 1x1</string>
+    <string name="widget_mini_next_label">Mini Next 2x1</string>
+
+    <string name="widget_today_description">Shows top priorities and next class.</string>
+    <string name="widget_quick_actions_description">Fast shortcuts for common actions.</string>
+    <string name="widget_focus_description">Quick focus durations and today focus total.</string>
+    <string name="widget_next_class_description">Shows next class time and venue.</string>
+    <string name="widget_progress_description">Tracks completed vs pending tasks.</string>
+    <string name="widget_streak_description">Shows streak and 7-day performance.</string>
+    <string name="widget_suggestion_description">Displays a single smart productivity nudge.</string>
+    <string name="widget_heatmap_description">Visual 7-day completion intensity.</string>
+    <string name="widget_academic_description">Open academic task count and top item.</string>
+    <string name="widget_motivator_description">Short motivational prompt.</string>
+    <string name="widget_stack_15_description">Rotates cards every 15 minutes.</string>
+    <string name="widget_stack_30_description">Rotates cards every 30 minutes.</string>
+    <string name="widget_stack_60_description">Rotates cards every 60 minutes.</string>
+    <string name="widget_stack_auto_description">Rotates cards using your selected interval in Settings.</string>
+    <string name="widget_mini_quick_log_description">Compact 1x1 one-tap voice logging.</string>
+    <string name="widget_mini_status_description">Compact 1x1 open-task counter.</string>
+    <string name="widget_mini_next_description">Compact 2x1 next-class snapshot.</string>
+
+    <string name="quick_log_tile_label">Quick Voice Log</string>
+    <string name="quick_log_tile_subtitle">Tap to start voice capture</string>
+
+    <string name="settings_widget_stack_interval_title">Widget Stack Interval</string>
+    <string name="settings_widget_stack_interval_subtitle">Controls Auto Stack widget rotation speed</string>
 </resources>
