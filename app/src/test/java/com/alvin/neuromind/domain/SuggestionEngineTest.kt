@@ -35,7 +35,7 @@ class SuggestionEngineTest {
         val tasks = listOf(
             task(id = 1, difficulty = Difficulty.HARD, priority = Priority.HIGH)
         )
-        val suggestion = SuggestionEngine.suggest(tasks, emptyTimetable, defaultProfile, peakTime)
+        val suggestion = SuggestionEngine.suggest(tasks, emptyTimetable, defaultProfile, now = peakTime)
         assertNotNull(suggestion)
         assertEquals(SuggestionType.PEAK_HOUR_NUDGE, suggestion!!.type)
     }
@@ -46,7 +46,7 @@ class SuggestionEngineTest {
             task(id = 1, difficulty = Difficulty.HARD, priority = Priority.HIGH, isCompleted = true),
             task(id = 2, difficulty = Difficulty.EASY, priority = Priority.LOW)
         )
-        val suggestion = SuggestionEngine.suggest(tasks, emptyTimetable, defaultProfile, peakTime)
+        val suggestion = SuggestionEngine.suggest(tasks, emptyTimetable, defaultProfile, now = peakTime)
         // Peak nudge should not fire — may fire ENERGY_MATCH or similar
         assertNotEquals(SuggestionType.PEAK_HOUR_NUDGE, suggestion?.type)
     }
@@ -56,7 +56,7 @@ class SuggestionEngineTest {
         val tasks = listOf(
             task(id = 1, difficulty = Difficulty.EASY)
         )
-        val suggestion = SuggestionEngine.suggest(tasks, emptyTimetable, defaultProfile, offPeakTime)
+        val suggestion = SuggestionEngine.suggest(tasks, emptyTimetable, defaultProfile, now = offPeakTime)
         assertNotNull(suggestion)
         assertEquals(SuggestionType.ENERGY_MATCH, suggestion!!.type)
         assertEquals(1, suggestion.taskId)
@@ -71,13 +71,13 @@ class SuggestionEngineTest {
         val oneOverdue = listOf(task(id = 1, dueDate = pastDue))
         val twoOverdue = listOf(task(id = 1, dueDate = pastDue), task(id = 2, dueDate = pastDue))
 
-        val noAlert = SuggestionEngine.suggest(zeroOverdue, emptyTimetable, defaultProfile, offPeakTime)
+        val noAlert = SuggestionEngine.suggest(zeroOverdue, emptyTimetable, defaultProfile, now = offPeakTime)
         assertNotEquals("No overdue alert for 0 overdue", SuggestionType.OVERDUE_ALERT, noAlert?.type)
 
-        val alert1 = SuggestionEngine.suggest(oneOverdue, emptyTimetable, defaultProfile, offPeakTime)
+        val alert1 = SuggestionEngine.suggest(oneOverdue, emptyTimetable, defaultProfile, now = offPeakTime)
         assertEquals("Overdue alert for 1 overdue", SuggestionType.OVERDUE_ALERT, alert1?.type)
 
-        val alert2 = SuggestionEngine.suggest(twoOverdue, emptyTimetable, defaultProfile, offPeakTime)
+        val alert2 = SuggestionEngine.suggest(twoOverdue, emptyTimetable, defaultProfile, now = offPeakTime)
         assertEquals("Overdue alert for 2 overdue", SuggestionType.OVERDUE_ALERT, alert2?.type)
     }
 
@@ -87,7 +87,7 @@ class SuggestionEngineTest {
             task(id = 1, isCompleted = true),
             task(id = 2, isCompleted = true)
         )
-        val suggestion = SuggestionEngine.suggest(tasks, emptyTimetable, defaultProfile, peakTime)
+        val suggestion = SuggestionEngine.suggest(tasks, emptyTimetable, defaultProfile, now = peakTime)
         assertNull("Should return null with no incomplete tasks", suggestion)
     }
 }

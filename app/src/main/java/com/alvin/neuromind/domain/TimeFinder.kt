@@ -35,6 +35,8 @@ object TimeFinder {
         for (dayOffset in 0 until lookaheadDays) {
             if (slots.size >= maxResults) break
             val date = referenceDate.plusDays(dayOffset.toLong())
+            // All-day events reserve the entire date.
+            if (timetable.any { it.isAllDay && it.occursOn(date) }) continue
 
             var current = if (dayOffset == 0) {
                 when {
@@ -49,14 +51,7 @@ object TimeFinder {
                 val end = current.plusMinutes(durationMinutes.toLong())
                 if (!end.isBefore(dayEnd)) break
 
-                val conflict = timetable.firstOrNull { entry ->
-                    val relevant = if (entry.isRecurring) {
-                        entry.dayOfWeek == date.dayOfWeek
-                    } else {
-                        entry.date == date
-                    }
-                    relevant && current.isBefore(entry.endTime) && end.isAfter(entry.startTime)
-                }
+                val conflict = timetable.firstOrNull { entry -> entry.blocks(date, current, end) }
 
                 if (conflict == null) {
                     slots.add(AvailableSlot(date, current, end))

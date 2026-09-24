@@ -39,19 +39,14 @@ class Scheduler {
             val taskDuration = task.durationMinutes.toLong()
             val endTime = currentTime.plusMinutes(taskDuration)
 
-            val conflict = timetable.find { entry ->
-                val isRelevantToThisDate = if (entry.isRecurring) {
-                    entry.dayOfWeek == date.dayOfWeek
-                } else {
-                    entry.date == date
-                }
-                isRelevantToThisDate && currentTime.isBefore(entry.endTime) && endTime.isAfter(entry.startTime)
-            }
+            val conflict = timetable.find { entry -> entry.blocks(date, currentTime, endTime) }
 
             if (conflict == null && endTime.isBefore(dayEnd)) {
                 schedule[TimeSlot(currentTime, endTime)] = task
                 currentTime = endTime.plusMinutes(15) // 15-minute break between tasks
             } else if (conflict != null) {
+                // An all-day event reserves the whole day — nothing more fits.
+                if (conflict.isAllDay) break
                 currentTime = conflict.endTime.plusMinutes(5)
             } else {
                 currentTime = currentTime.plusMinutes(15)
