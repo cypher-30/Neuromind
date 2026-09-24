@@ -1,5 +1,6 @@
 package com.alvin.neuromind.data.backup
 
+import com.alvin.neuromind.data.EventReminder
 import com.alvin.neuromind.data.TimetableEntry
 import kotlinx.serialization.Serializable
 import java.time.DayOfWeek
@@ -21,7 +22,10 @@ data class TimetableEntryDto(
     val isRecurring: Boolean,
     val date: String?,
     val venue: String?,
-    val details: String?
+    val details: String?,
+    // Added in backup schema 2; defaults let schema-1 files restore unchanged.
+    val isAllDay: Boolean = false,
+    val reminderMode: String? = null
 )
 
 fun TimetableEntry.toDto() = TimetableEntryDto(
@@ -33,7 +37,9 @@ fun TimetableEntry.toDto() = TimetableEntryDto(
     isRecurring = isRecurring,
     date = date?.toString(),
     venue = venue,
-    details = details
+    details = details,
+    isAllDay = isAllDay,
+    reminderMode = reminderMode?.name
 )
 
 fun TimetableEntryDto.toEntity() = TimetableEntry(
@@ -45,5 +51,7 @@ fun TimetableEntryDto.toEntity() = TimetableEntry(
     isRecurring = isRecurring,
     date = date?.let { LocalDate.parse(it) },
     venue = venue,
-    details = details
+    details = details,
+    isAllDay = isAllDay,
+    reminderMode = reminderMode?.let { name -> EventReminder.entries.firstOrNull { it.name == name } }
 )

@@ -20,6 +20,7 @@ data class BackupData(
     val focusSessions: List<FocusSession>
 ) {
     companion object {
-        const val CURRENT_SCHEMA_VERSION = 1
+        // 2: timetable entries gained isAllDay + reminderMode (dated events).
+        const val CURRENT_SCHEMA_VERSION = 2
     }
 }

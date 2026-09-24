@@ -12,6 +12,14 @@ enum class Mood(val score: Int) {
     GREAT(5)
 }
 
+enum class ToneLabel {
+    OVERWHELMED,
+    STRESSED,
+    NEUTRAL,
+    POSITIVE,
+    CALM
+}
+
 @Serializable
 @Entity(tableName = "feedback_logs")
 data class FeedbackLog(
@@ -21,5 +29,7 @@ data class FeedbackLog(
     val mood: Mood,
     val energyLevel: Int,
     val tasksCompleted: Int,
-    val comment: String?
+    val comment: String?,
+    val toneLabel: ToneLabel? = null,
+    val sentimentScore: Float? = null
 )

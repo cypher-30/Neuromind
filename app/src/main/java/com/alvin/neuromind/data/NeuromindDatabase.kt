@@ -14,7 +14,11 @@ import java.time.DayOfWeek
 import java.time.LocalTime
 
 // Schema is live in production installs — do not change entities without bumping version + a real migration.
-@Database(entities = [Task::class, TimetableEntry::class, FeedbackLog::class, FocusSession::class], version = 9, exportSchema = false)
+@Database(
+    entities = [Task::class, TimetableEntry::class, FeedbackLog::class, FocusSession::class, EditorDraft::class],
+    version = NeuromindDatabase.VERSION,
+    exportSchema = false
+)
 @TypeConverters(Converters::class)
 abstract class NeuromindDatabase : RoomDatabase() {
 
@@ -22,6 +26,7 @@ abstract class NeuromindDatabase : RoomDatabase() {
     abstract fun timetableDao(): TimetableDao
     abstract fun feedbackLogDao(): FeedbackLogDao
     abstract fun focusSessionDao(): FocusSessionDao
+    abstract fun editorDraftDao(): EditorDraftDao
 
     private class NeuromindDatabaseCallback(
         private val scope: CoroutineScope
@@ -79,26 +84,26 @@ abstract class NeuromindDatabase : RoomDatabase() {
             // 2. Seed Tasks (Large variety)
             val tasks = listOf(
                 // Overdue
-                Task(title = "Submit Assignment 1", description = "Final PDF upload", dueDate = now - 2 * dayMillis, priority = Priority.HIGH, difficulty = Difficulty.HARD, isCompleted = false),
-                Task(title = "Pay Internet Bill", dueDate = now - dayMillis, priority = Priority.MEDIUM, isCompleted = false),
-                
+                Task(title = "Submit Assignment 1", description = "Final PDF upload", dueDate = now - 2 * dayMillis, priority = Priority.HIGH, difficulty = Difficulty.HARD, isCompleted = false, subject = "Computer Science", category = TaskCategory.ACADEMIC),
+                Task(title = "Pay Internet Bill", dueDate = now - dayMillis, priority = Priority.MEDIUM, isCompleted = false, category = TaskCategory.PERSONAL),
+
                 // Completed
-                Task(title = "Groceries shopping", isCompleted = true, createdAt = now - 5 * dayMillis),
-                Task(title = "Clean Apartment", isCompleted = true, createdAt = now - 4 * dayMillis),
-                Task(title = "Read Chapter 5", isCompleted = true, createdAt = now - 3 * dayMillis),
-                Task(title = "Update Resume", isCompleted = true, createdAt = now - 2 * dayMillis),
-                Task(title = "Wash Car", isCompleted = true, createdAt = now - dayMillis),
+                Task(title = "Groceries shopping", isCompleted = true, createdAt = now - 5 * dayMillis, category = TaskCategory.PERSONAL),
+                Task(title = "Clean Apartment", isCompleted = true, createdAt = now - 4 * dayMillis, category = TaskCategory.PERSONAL),
+                Task(title = "Read Chapter 5", isCompleted = true, createdAt = now - 3 * dayMillis, subject = "Economics", category = TaskCategory.ACADEMIC),
+                Task(title = "Update Resume", isCompleted = true, createdAt = now - 2 * dayMillis, category = TaskCategory.PERSONAL),
+                Task(title = "Wash Car", isCompleted = true, createdAt = now - dayMillis, category = TaskCategory.PERSONAL),
 
                 // Upcoming Today
-                Task(title = "Prepare Lecture Notes", description = "Topic: Room DB", dueDate = now + 2 * 3600000L, priority = Priority.HIGH, durationMinutes = 45),
-                Task(title = "Call Mom", dueDate = now + 4 * 3600000L, priority = Priority.LOW, durationMinutes = 20),
-                Task(title = "Study for Midterms", description = "Focus on Sorting Algorithms", dueDate = now + 6 * 3600000L, priority = Priority.HIGH, difficulty = Difficulty.HARD, durationMinutes = 120),
+                Task(title = "Prepare Lecture Notes", description = "Topic: Room DB", dueDate = now + 2 * 3600000L, priority = Priority.HIGH, durationMinutes = 45, subject = "Computer Science", category = TaskCategory.ACADEMIC),
+                Task(title = "Call Mom", dueDate = now + 4 * 3600000L, priority = Priority.LOW, durationMinutes = 20, category = TaskCategory.PERSONAL),
+                Task(title = "Study for Midterms", description = "Focus on Sorting Algorithms", dueDate = now + 6 * 3600000L, priority = Priority.HIGH, difficulty = Difficulty.HARD, durationMinutes = 120, subject = "Computer Science", category = TaskCategory.ACADEMIC),
 
                 // Future
-                Task(title = "Buy New Laptop Charger", dueDate = now + 2 * dayMillis, priority = Priority.MEDIUM, durationMinutes = 60),
-                Task(title = "Organize Desk", dueDate = now + 3 * dayMillis, priority = Priority.LOW, durationMinutes = 30),
-                Task(title = "Write Blog Post", dueDate = now + 5 * dayMillis, priority = Priority.MEDIUM, durationMinutes = 90),
-                Task(title = "Doctor Appointment", dueDate = now + 7 * dayMillis, priority = Priority.HIGH, durationMinutes = 60)
+                Task(title = "Buy New Laptop Charger", dueDate = now + 2 * dayMillis, priority = Priority.MEDIUM, durationMinutes = 60, category = TaskCategory.PERSONAL),
+                Task(title = "Organize Desk", dueDate = now + 3 * dayMillis, priority = Priority.LOW, durationMinutes = 30, category = TaskCategory.PERSONAL),
+                Task(title = "Write Blog Post", dueDate = now + 5 * dayMillis, priority = Priority.MEDIUM, durationMinutes = 90, category = TaskCategory.PERSONAL),
+                Task(title = "Doctor Appointment", dueDate = now + 7 * dayMillis, priority = Priority.HIGH, durationMinutes = 60, category = TaskCategory.PERSONAL)
             )
             tasks.forEach { taskDao.insertTask(it) }
 
@@ -110,7 +115,7 @@ abstract class NeuromindDatabase : RoomDatabase() {
                 feedbackLogDao.insertFeedbackLog(FeedbackLog(
                     date = logDate,
                     mood = moods.random(),
-                    energyLevel = (3..10).random(),
+                    energyLevel = (1..5).random(),
                     tasksCompleted = (0..6).random(),
                     comment = if (i % 3 == 0) "Productive day $i" else "Daily check-in $i"
                 ))
@@ -119,6 +124,8 @@ abstract class NeuromindDatabase : RoomDatabase() {
     }
 
     companion object {
+        const val VERSION = 12
+
         @Volatile
         private var INSTANCE: NeuromindDatabase? = null
 
@@ -137,6 +144,40 @@ abstract class NeuromindDatabase : RoomDatabase() {
             }
         }
 
+        // Adds Task.subject and Task.category for the Organic redesign (v9 -> v10).
+        // Both columns are additive with defaults, so existing rows survive untouched.
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE tasks ADD COLUMN subject TEXT")
+                db.execSQL("ALTER TABLE tasks ADD COLUMN category TEXT NOT NULL DEFAULT 'ACADEMIC'")
+            }
+        }
+
+        // Adds optional tone metadata on feedback logs (v10 -> v11).
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE feedback_logs ADD COLUMN toneLabel TEXT")
+                db.execSQL("ALTER TABLE feedback_logs ADD COLUMN sentimentScore REAL")
+            }
+        }
+
+        // Dated events + editor drafts (v11 -> v12). Additive only: existing
+        // timetable rows get isAllDay = 0 and reminderMode = NULL (legacy
+        // polling reminders), so nothing about current entries changes.
+        val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE timetable_entries ADD COLUMN isAllDay INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE timetable_entries ADD COLUMN reminderMode TEXT")
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `editor_drafts` (
+                        `key` TEXT NOT NULL PRIMARY KEY,
+                        `payload` TEXT NOT NULL,
+                        `updatedAt` INTEGER NOT NULL
+                    )""".trimIndent()
+                )
+            }
+        }
+
         fun getDatabase(context: Context, scope: CoroutineScope): NeuromindDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -144,7 +185,7 @@ abstract class NeuromindDatabase : RoomDatabase() {
                     NeuromindDatabase::class.java,
                     "neuromind_database"
                 )
-                    .addMigrations(MIGRATION_8_9)
+                    .addMigrations(MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
                     .addCallback(NeuromindDatabaseCallback(scope))
                     .build()
                 INSTANCE = instance

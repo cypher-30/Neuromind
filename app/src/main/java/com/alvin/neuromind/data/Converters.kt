@@ -23,4 +23,14 @@ class Converters {
 
     @TypeConverter fun fromMood(mood: Mood): String = mood.name
     @TypeConverter fun toMood(mood: String): Mood = Mood.valueOf(mood)
+
+    @TypeConverter fun fromToneLabel(toneLabel: ToneLabel?): String? = toneLabel?.name
+    @TypeConverter fun toToneLabel(toneLabel: String?): ToneLabel? = toneLabel?.let { ToneLabel.valueOf(it) }
+
+    @TypeConverter fun fromTaskCategory(category: TaskCategory): String = category.name
+    @TypeConverter fun toTaskCategory(category: String): TaskCategory = TaskCategory.valueOf(category)
+
+    @TypeConverter fun fromEventReminder(reminder: EventReminder?): String? = reminder?.name
+    @TypeConverter fun toEventReminder(reminder: String?): EventReminder? =
+        reminder?.let { name -> EventReminder.entries.firstOrNull { it.name == name } }
 }
