@@ -22,16 +22,28 @@ data class AddEditTaskUiState(
     val difficulty: Difficulty = Difficulty.MEDIUM,
     val durationMinutes: Int = 60,
     val prerequisiteTaskId: Int? = null,
+    val subject: String = "",
+    val category: TaskCategory = TaskCategory.ACADEMIC,
+    val isEditing: Boolean = false,
     val availableTasks: List<Task> = emptyList(),
     val subTaskProposal: List<Task> = emptyList(),
     val availableTimeSlots: List<AvailableSlot> = emptyList(),
-    val isTaskSaved: Boolean = false
+    val isTaskSaved: Boolean = false,
+    /** True once the original task and any draft are loaded; edits before then are not persisted. */
+    val isReady: Boolean = false,
+    /** Input was restored from an unsaved draft. */
+    val restoredDraft: Boolean = false,
+    /** Current input differs from the saved task (or an empty form) and is being auto-saved. */
+    val hasUnsavedChanges: Boolean = false
 )
 
 class AddEditTaskViewModel(private val repository: TaskRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(AddEditTaskUiState())
     val uiState = _uiState.asStateFlow()
     private var currentTaskId: Int? = null
+    private var original: Task? = null
+    private var baseline = TaskDraft()
+    private var draftSession: DraftSession<TaskDraft>? = null
 
     init {
         // Always collect so the dependency selector is populated for new tasks too
@@ -44,52 +56,83 @@ class AddEditTaskViewModel(private val repository: TaskRepository) : ViewModel()
         }
     }
 
-    fun loadTask(id: Int) {
-        if (id <= 0) return
-        currentTaskId = id
+    /** Call once per screen with the task id, or -1 for a new task. Restores any unsaved draft. */
+    fun start(id: Int) {
+        if (draftSession != null) return
+        val taskId = id.takeIf { it > 0 }
+        currentTaskId = taskId
+        val session = DraftSession(repository, DraftKeys.of(DraftKeys.TASK, taskId), TaskDraft.serializer())
+        draftSession = session
         viewModelScope.launch {
-            repository.getTaskById(id)?.let { task ->
-                _uiState.update {
-                    it.copy(
-                        title = task.title,
-                        description = task.description ?: "",
-                        dueDate = task.dueDate,
-                        priority = task.priority,
-                        difficulty = task.difficulty,
-                        durationMinutes = task.durationMinutes,
-                        prerequisiteTaskId = task.prerequisiteTaskId
-                    )
-                }
+            val task = taskId?.let { repository.getTaskById(it) }
+            original = task
+            if (task != null) baseline = task.toDraft()
+            val draft = session.load()?.takeIf { it != baseline }
+            _uiState.update { state ->
+                state.applyDraft(draft ?: baseline).copy(
+                    isEditing = task != null,
+                    isReady = true,
+                    restoredDraft = draft != null,
+                    hasUnsavedChanges = draft != null,
+                    availableTasks = state.availableTasks.filter { it.id != (taskId ?: -1) }
+                )
             }
         }
     }
 
-    fun onTitleChange(value: String) = _uiState.update { it.copy(title = value) }
-    fun onDescriptionChange(value: String) = _uiState.update { it.copy(description = value) }
-    fun onDueDateChange(value: Long?) = _uiState.update { it.copy(dueDate = value) }
-    fun onPriorityChange(value: Priority) = _uiState.update { it.copy(priority = value) }
-    fun onDifficultyChange(value: Difficulty) = _uiState.update { it.copy(difficulty = value) }
-    fun onDurationChange(value: Int) = _uiState.update { it.copy(durationMinutes = value) }
-    fun onPrerequisiteChange(value: Int?) = _uiState.update { it.copy(prerequisiteTaskId = value) }
-
-    fun saveTask() {
-        viewModelScope.launch {
-            val state = _uiState.value
-            val task = Task(
-                id = currentTaskId ?: 0,
-                title = state.title,
-                description = state.description,
-                dueDate = state.dueDate,
-                priority = state.priority,
-                difficulty = state.difficulty,
-                durationMinutes = state.durationMinutes,
-                prerequisiteTaskId = state.prerequisiteTaskId
-            )
-            if (task.id != 0) repository.updateTask(task) else repository.insertTask(task)
-            _uiState.update { it.copy(isTaskSaved = true) }
-        }
+    private fun edit(transform: (AddEditTaskUiState) -> AddEditTaskUiState) {
+        _uiState.update(transform)
+        val state = _uiState.value
+        if (!state.isReady || state.isTaskSaved) return
+        val draft = state.toDraft()
+        val changed = draft != baseline
+        _uiState.update { it.copy(hasUnsavedChanges = changed) }
+        draftSession?.update(draft.takeIf { changed })
     }
 
+    fun onTitleChange(value: String) = edit { it.copy(title = value) }
+    fun onDescriptionChange(value: String) = edit { it.copy(description = value) }
+    fun onDueDateChange(value: Long?) = edit { it.copy(dueDate = value) }
+    fun onPriorityChange(value: Priority) = edit { it.copy(priority = value) }
+    fun onDifficultyChange(value: Difficulty) = edit { it.copy(difficulty = value) }
+    fun onDurationChange(value: Int) = edit { it.copy(durationMinutes = value) }
+    fun onPrerequisiteChange(value: Int?) = edit { it.copy(prerequisiteTaskId = value) }
+    fun onSubjectChange(value: String) = edit { it.copy(subject = value) }
+    fun onCategoryChange(value: TaskCategory) = edit { it.copy(category = value) }
+
+    /** Throws away the unsaved draft and resets the form to the saved task (or blank). */
+    fun discardDraft() {
+        draftSession?.discard()
+        _uiState.update { it.applyDraft(baseline).copy(restoredDraft = false, hasUnsavedChanges = false) }
+    }
+
+    fun dismissRestoredBanner() = _uiState.update { it.copy(restoredDraft = false) }
+
+    fun saveTask() {
+        val state = _uiState.value
+        if (state.title.isBlank() || state.isTaskSaved || !state.isReady) return
+        _uiState.update { it.copy(isTaskSaved = true) }
+        viewModelScope.launch {
+            val fields = { base: Task ->
+                base.copy(
+                    title = state.title.trim(),
+                    description = state.description,
+                    dueDate = state.dueDate,
+                    priority = state.priority,
+                    difficulty = state.difficulty,
+                    durationMinutes = state.durationMinutes,
+                    prerequisiteTaskId = state.prerequisiteTaskId,
+                    subject = state.subject.trim().takeIf { it.isNotBlank() },
+                    category = state.category
+                )
+            }
+            // Editing keeps isCompleted/createdAt from the stored task.
+            val existing = original
+            if (existing != null) repository.updateTask(fields(existing))
+            else repository.insertTask(fields(Task(title = state.title)))
+            draftSession?.close()
+        }
+    }
     // --- Pillar 5: Study Plan Generator ---
 
     fun generateSubTaskProposal() {
@@ -108,6 +151,7 @@ class AddEditTaskViewModel(private val repository: TaskRepository) : ViewModel()
     fun confirmSubTaskBreakdown() {
         viewModelScope.launch {
             _uiState.value.subTaskProposal.forEach { repository.insertTask(it) }
+            draftSession?.close()
             _uiState.update { it.copy(subTaskProposal = emptyList(), isTaskSaved = true) }
         }
     }
@@ -132,7 +176,7 @@ class AddEditTaskViewModel(private val repository: TaskRepository) : ViewModel()
             .atZone(ZoneId.systemDefault())
             .toInstant()
             .toEpochMilli()
-        _uiState.update { it.copy(dueDate = epochMilli, availableTimeSlots = emptyList()) }
+        edit { it.copy(dueDate = epochMilli, availableTimeSlots = emptyList()) }
     }
 
     fun dismissTimeSlots() = _uiState.update { it.copy(availableTimeSlots = emptyList()) }
@@ -147,3 +191,39 @@ class AddEditTaskViewModelFactory(private val repository: TaskRepository) : View
         throw IllegalArgumentException("Unknown ViewModel class")
     }
 }
+
+private fun Task.toDraft() = TaskDraft(
+    title = title,
+    description = description ?: "",
+    dueDate = dueDate,
+    priority = priority.name,
+    difficulty = difficulty.name,
+    durationMinutes = durationMinutes,
+    prerequisiteTaskId = prerequisiteTaskId,
+    subject = subject ?: "",
+    category = category.name
+)
+
+private fun AddEditTaskUiState.toDraft() = TaskDraft(
+    title = title,
+    description = description,
+    dueDate = dueDate,
+    priority = priority.name,
+    difficulty = difficulty.name,
+    durationMinutes = durationMinutes,
+    prerequisiteTaskId = prerequisiteTaskId,
+    subject = subject,
+    category = category.name
+)
+
+private fun AddEditTaskUiState.applyDraft(d: TaskDraft) = copy(
+    title = d.title,
+    description = d.description,
+    dueDate = d.dueDate,
+    priority = runCatching { Priority.valueOf(d.priority) }.getOrDefault(Priority.MEDIUM),
+    difficulty = runCatching { Difficulty.valueOf(d.difficulty) }.getOrDefault(Difficulty.MEDIUM),
+    durationMinutes = d.durationMinutes,
+    prerequisiteTaskId = d.prerequisiteTaskId,
+    subject = d.subject,
+    category = runCatching { TaskCategory.valueOf(d.category) }.getOrDefault(TaskCategory.ACADEMIC)
+)

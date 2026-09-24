@@ -18,13 +18,17 @@ data class TaskListUiState(
     val displayedTasks: List<Task> = emptyList(),
     val allTasksForBlocking: List<Task> = emptyList(),
     val selectedFilter: TaskFilter = TaskFilter.ALL,
+    val searchQuery: String = "",
     val isLoading: Boolean = true
 )
 
 class TaskViewModel(private val repository: TaskRepository) : ViewModel() {
     private val _selectedFilter = MutableStateFlow(TaskFilter.ALL)
+    private val _searchQuery = MutableStateFlow("")
 
-    val uiState: StateFlow<TaskListUiState> = combine(repository.allTasks, _selectedFilter) { tasks, filter ->
+    val uiState: StateFlow<TaskListUiState> = combine(
+        repository.allTasks, _selectedFilter, _searchQuery
+    ) { tasks, filter, query ->
         val now = System.currentTimeMillis()
         val today = LocalDate.now()
         val filtered = when (filter) {
@@ -34,10 +38,13 @@ class TaskViewModel(private val repository: TaskRepository) : ViewModel() {
             TaskFilter.TODAY -> tasks.filter { !it.isCompleted && it.dueDate != null && isSameDay(it.dueDate, today) }
             TaskFilter.UPCOMING -> tasks.filter { !it.isCompleted && (it.dueDate == null || it.dueDate > now) && !isSameDay(it.dueDate ?: 0, today) }
         }
-        TaskListUiState(filtered, tasks, filter, false)
+        val searched = if (query.isBlank()) filtered
+                       else filtered.filter { it.title.contains(query, ignoreCase = true) }
+        TaskListUiState(searched, tasks, filter, query, false)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TaskListUiState())
 
     fun setFilter(filter: TaskFilter) { _selectedFilter.value = filter }
+    fun setSearchQuery(query: String) { _searchQuery.value = query }
 
     fun onTaskCheckedChange(task: Task, isChecked: Boolean) = viewModelScope.launch {
         repository.updateTask(task.copy(isCompleted = isChecked))
