@@ -9,9 +9,12 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import android.provider.Settings
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
@@ -21,16 +24,19 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.alvin.neuromind.data.Task
-import com.alvin.neuromind.ui.components.NeuromindTopBar
+import com.alvin.neuromind.ui.components.CircleIconButton
+import com.alvin.neuromind.ui.components.OrganicCard
+import com.alvin.neuromind.ui.components.SectionKicker
+import com.alvin.neuromind.ui.theme.Dimens
 import kotlinx.coroutines.delay
 
 private enum class TimerState { Idle, Running, Paused }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FocusModeScreen(task: Task, viewModel: FocusViewModel, onFinish: () -> Unit) {
     val context = LocalContext.current
@@ -95,30 +101,28 @@ fun FocusModeScreen(task: Task, viewModel: FocusViewModel, onFinish: () -> Unit)
     val minutes = secondsLeft / 60
     val seconds = secondsLeft % 60
 
-    Scaffold(
-        topBar = {
-            NeuromindTopBar(
-                title = "",
-                onNavigateBack = onFinish,
-                useCloseIcon = true,
-                transparent = true
-            )
-        }
-    ) { innerPadding ->
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(innerPadding)
-            .background(MaterialTheme.colorScheme.background),
-        contentAlignment = Alignment.Center
+            .background(MaterialTheme.colorScheme.background)
+            .padding(horizontal = Dimens.ScreenPaddingHorizontal)
+            .padding(bottom = Dimens.ScreenPaddingBottomNoNav)
     ) {
+        Spacer(Modifier.height(Dimens.ScreenPaddingTop))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            CircleIconButton(icon = Icons.Default.Close, contentDescription = "Close", onClick = onFinish)
+            Spacer(Modifier.width(12.dp))
+            Text("Focus mode", style = MaterialTheme.typography.headlineSmall)
+        }
+
         Column(
+            modifier = Modifier.weight(1f),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(28.dp)
+            verticalArrangement = Arrangement.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = "Currently Focusing On",
+                    text = "Currently focusing on",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -126,105 +130,123 @@ fun FocusModeScreen(task: Task, viewModel: FocusViewModel, onFinish: () -> Unit)
                 Text(
                     text = task.title,
                     style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
             }
+            Spacer(Modifier.height(34.dp))
 
             // Timer ring
             Box(contentAlignment = Alignment.Center, modifier = Modifier.size(220.dp)) {
                 CircularProgressIndicator(
                     progress = { progress },
                     modifier = Modifier.fillMaxSize(),
-                    strokeWidth = 10.dp,
+                    strokeWidth = 14.dp,
+                    strokeCap = StrokeCap.Round,
                     color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                    trackColor = MaterialTheme.colorScheme.outlineVariant
                 )
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = "%02d:%02d".format(minutes, seconds),
-                        style = MaterialTheme.typography.displayMedium,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.displaySmall
                     )
                     Text(
-                        text = when (timerState) {
-                            TimerState.Idle    -> if (secondsLeft == totalSeconds) "Ready" else "Paused"
-                            TimerState.Running -> "Focus"
-                            TimerState.Paused  -> "Paused"
-                        },
+                        text = "$sessionMinutes min session",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
+            Spacer(Modifier.height(34.dp))
 
-            // Duration Adjuster (only when Idle/Ready)
-            if (timerState == TimerState.Idle && secondsLeft == totalSeconds) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    IconButton(onClick = { if (sessionMinutes > 5) sessionMinutes -= 5; secondsLeft = sessionMinutes * 60 }) {
-                        Icon(Icons.Default.Remove, contentDescription = "Decrease time")
-                    }
-                    Text("${sessionMinutes} min", style = MaterialTheme.typography.titleMedium)
-                    IconButton(onClick = { if (sessionMinutes < 120) sessionMinutes += 5; secondsLeft = sessionMinutes * 60 }) {
-                        Icon(Icons.Default.Add, contentDescription = "Increase time")
-                    }
+            // Controls: -5 / play-pause / +5
+            val adjustable = timerState == TimerState.Idle && secondsLeft == totalSeconds
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                FocusAdjustButton(label = "–5", enabled = adjustable) {
+                    if (sessionMinutes > 5) sessionMinutes -= 5; secondsLeft = sessionMinutes * 60
                 }
-            }
-
-            // Controls
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (secondsLeft < totalSeconds) {
-                    OutlinedButton(
-                        onClick = {
-                            timerState = TimerState.Idle
-                            secondsLeft = sessionMinutes * 60
-                        }
-                    ) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Reset", modifier = Modifier.size(18.dp))
-                    }
-                }
-
-                Button(
-                    onClick = {
-                        timerState = when (timerState) {
-                            TimerState.Running -> TimerState.Paused
-                            else               -> TimerState.Running
-                        }
-                    },
-                    modifier = Modifier.width(150.dp)
+                Box(
+                    modifier = Modifier
+                        .size(76.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary)
+                        .clickable {
+                            timerState = when (timerState) {
+                                TimerState.Running -> TimerState.Paused
+                                else -> TimerState.Running
+                            }
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = if (timerState == TimerState.Running) Icons.Default.Pause else Icons.Default.PlayArrow,
                         contentDescription = if (timerState == TimerState.Running) "Pause" else "Start",
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = when (timerState) {
-                            TimerState.Running -> "Pause"
-                            TimerState.Paused  -> "Resume"
-                            TimerState.Idle    -> "Start"
-                        }
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(28.dp)
                     )
                 }
+                FocusAdjustButton(label = "+5", enabled = adjustable) {
+                    if (sessionMinutes < 120) sessionMinutes += 5; secondsLeft = sessionMinutes * 60
+                }
             }
+            Spacer(Modifier.height(20.dp))
 
-            TextButton(onClick = onFinish) { Text("End Session") }
-            
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !notificationManager.isNotificationPolicyAccessGranted) {
-                OutlinedButton(
-                    onClick = {
-                        context.startActivity(
-                            Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
-                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        )
-                    },
-                    modifier = Modifier.padding(top = 8.dp)
+            if (secondsLeft < totalSeconds) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.clickable {
+                        timerState = TimerState.Idle
+                        secondsLeft = sessionMinutes * 60
+                    }
                 ) {
-                    Text("Grant DND Access")
+                    Icon(Icons.Default.Refresh, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(15.dp))
+                    Text("Reset", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
+
+        OrganicCard(color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.fillMaxWidth()) {
+            Text(
+                "Do Not Disturb turns on automatically while you focus — notifications hold until you're done.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !notificationManager.isNotificationPolicyAccessGranted) {
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = {
+                    context.startActivity(
+                        Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.small
+            ) {
+                Text("Grant DND Access")
+            }
+        }
     }
+}
+
+@Composable
+private fun FocusAdjustButton(label: String, enabled: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surface)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.titleMedium,
+            color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+        )
     }
 }
 

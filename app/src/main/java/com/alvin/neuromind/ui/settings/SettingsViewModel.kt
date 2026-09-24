@@ -19,7 +19,7 @@ import kotlin.random.Random
 
 data class AppInfo(
     val versionName: String = "7.0",
-    val dbVersion: Int = 9,
+    val dbVersion: Int = com.alvin.neuromind.data.NeuromindDatabase.VERSION,
     val taskCount: Int = 0,
     val timetableCount: Int = 0,
     val feedbackCount: Int = 0,
@@ -45,6 +45,16 @@ class SettingsViewModel(
 
     val taskStyle: StateFlow<TaskStyle> = userPrefs.taskStyle
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TaskStyle.BALANCED)
+
+    val widgetStackIntervalMinutes: StateFlow<Int> = userPrefs.widgetStackIntervalMinutes
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 30)
+
+    val notificationsEnabled: StateFlow<Boolean> = userPrefs.notificationsEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val peakWindow: StateFlow<PeakWindow> = combine(peakStartHour, peakEndHour) { start, end ->
+        PeakWindow.forHours(start, end)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), PeakWindow.LATE_MORNING)
 
     val appInfo: StateFlow<AppInfo> = combine(
         repository.allTasks,
@@ -72,6 +82,14 @@ class SettingsViewModel(
         userPrefs.savePeakEndHour(hour)
     }
 
+    fun selectPeakWindow(window: PeakWindow) = viewModelScope.launch {
+        userPrefs.savePeakWindow(window)
+    }
+
+    fun toggleNotifications() = viewModelScope.launch {
+        userPrefs.setNotificationsEnabled(!notificationsEnabled.value)
+    }
+
     fun updateSessionLength(minutes: Int) = viewModelScope.launch {
         userPrefs.saveFocusDuration(minutes)
     }
@@ -80,9 +98,15 @@ class SettingsViewModel(
         userPrefs.saveTaskStyle(style)
     }
 
+    fun updateWidgetStackInterval(minutes: Int) = viewModelScope.launch {
+        userPrefs.saveWidgetStackIntervalMinutes(minutes)
+        repository.refreshWidgetNow()
+    }
+
     fun resetAppData() = viewModelScope.launch {
         repository.allTasks.first().forEach { repository.deleteTask(it) }
         repository.allTimetableEntries.first().forEach { repository.deleteTimetableEntry(it) }
+        repository.deleteAllDrafts()
     }
 
     /**
@@ -104,7 +128,9 @@ class SettingsViewModel(
                 dueDate = System.currentTimeMillis() + (randomDaysOffset * 86400000L),
                 priority = Priority.entries.random(),
                 difficulty = Difficulty.entries.random(),
-                durationMinutes = Random.nextInt(30, 180)
+                durationMinutes = Random.nextInt(30, 180),
+                subject = randomSubject,
+                category = TaskCategory.ACADEMIC
             )
             repository.insertTask(task)
         }

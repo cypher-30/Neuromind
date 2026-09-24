@@ -1,6 +1,7 @@
 package com.alvin.neuromind.data.backup
 
 import com.alvin.neuromind.data.Difficulty
+import com.alvin.neuromind.data.EventReminder
 import com.alvin.neuromind.data.FeedbackLog
 import com.alvin.neuromind.data.FocusSession
 import com.alvin.neuromind.data.Mood
@@ -77,5 +78,36 @@ class BackupDataTest {
         val restored = Json.decodeFromString<BackupData>(Json.encodeToString(empty))
 
         assertEquals(empty, restored)
+    }
+
+    @Test
+    fun `event fields survive the DTO round trip`() {
+        val event = TimetableEntry(
+            id = 9, title = "Conference", dayOfWeek = DayOfWeek.FRIDAY,
+            startTime = LocalTime.MIDNIGHT, endTime = LocalTime.of(23, 59),
+            isRecurring = false, date = LocalDate.of(2026, 9, 4), venue = "KICC", details = null,
+            isAllDay = true, reminderMode = EventReminder.DAY_BEFORE
+        )
+
+        val restored = Json.decodeFromString<TimetableEntryDto>(Json.encodeToString(event.toDto())).toEntity()
+
+        assertEquals(event, restored)
+    }
+
+    @Test
+    fun `schema 1 backups without event fields still load`() {
+        val legacy = """
+            {"schemaVersion":1,"exportedAt":1,"tasks":[],"feedback":[],"focusSessions":[],
+             "timetable":[{"id":3,"title":"Old event","dayOfWeek":"SATURDAY","startTime":"14:30","endTime":"16:00",
+                           "isRecurring":false,"date":"2026-08-01","venue":null,"details":null}]}
+        """.trimIndent()
+
+        val restored = Json.decodeFromString<BackupData>(legacy)
+        val entry = restored.timetable.single().toEntity()
+
+        assertEquals(1, restored.schemaVersion)
+        assertFalse(entry.isAllDay)
+        assertNull(entry.reminderMode)
+        assertEquals(LocalDate.of(2026, 8, 1), entry.date)
     }
 }
