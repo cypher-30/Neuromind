@@ -1,57 +1,75 @@
 package com.alvin.neuromind.ui.settings
 
+import com.alvin.neuromind.ui.components.OrganicConfirmDialog
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.alvin.neuromind.data.preferences.PeakWindow
 import com.alvin.neuromind.data.preferences.TaskStyle
 import com.alvin.neuromind.data.preferences.ThemeSetting
-import com.alvin.neuromind.ui.components.NeuromindTopBar
+import com.alvin.neuromind.ui.components.OrganicCard
+import com.alvin.neuromind.ui.components.OrganicToggle
+import com.alvin.neuromind.ui.components.PillChip
+import com.alvin.neuromind.ui.components.ScreenHeader
+import com.alvin.neuromind.ui.components.SectionKicker
+import com.alvin.neuromind.ui.theme.Dimens
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+private val SESSION_LENGTH_OPTIONS = listOf(15, 25, 45, 60)
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
-    onNavigateToTimetable: () -> Unit,
-    onNavigateToFeedback: () -> Unit
+    onNavigateToFeedback: () -> Unit,
+    onNavigateToPreviews: () -> Unit,
+    onReplaySplash: () -> Unit
 ) {
     val currentTheme by viewModel.themeSetting.collectAsStateWithLifecycle()
-    val currentPeakStart by viewModel.peakStartHour.collectAsStateWithLifecycle()
-    val currentPeakEnd by viewModel.peakEndHour.collectAsStateWithLifecycle()
+    val currentPeakWindow by viewModel.peakWindow.collectAsStateWithLifecycle()
     val currentSessionLength by viewModel.preferredSessionLength.collectAsStateWithLifecycle()
     val currentTaskStyle by viewModel.taskStyle.collectAsStateWithLifecycle()
+    val notificationsEnabled by viewModel.notificationsEnabled.collectAsStateWithLifecycle()
+    val currentWidgetStackInterval by viewModel.widgetStackIntervalMinutes.collectAsStateWithLifecycle()
 
     val appInfo by viewModel.appInfo.collectAsStateWithLifecycle()
     val backupMessage by viewModel.backupMessage.collectAsStateWithLifecycle()
 
-    var showThemeDialog by remember { mutableStateOf(false) }
-    var showPeakHoursDialog by remember { mutableStateOf(false) }
-    var showSessionDialog by remember { mutableStateOf(false) }
-    var showTaskStyleDialog by remember { mutableStateOf(false) }
+    var showWidgetStackDialog by remember { mutableStateOf(false) }
+    var showMiniQuickLogHelpDialog by remember { mutableStateOf(false) }
+    var showQuickTileHelpDialog by remember { mutableStateOf(false) }
+    var showPrivacyPolicyDialog by remember { mutableStateOf(false) }
+    var showTermsDialog by remember { mutableStateOf(false) }
     var showResetConfirmation by remember { mutableStateOf(false) }
     var showAppInfoDialog by remember { mutableStateOf(false) }
     var showRestoreConfirmation by remember { mutableStateOf(false) }
+    var showClearFeedbackConfirmation by remember { mutableStateOf(false) }
+    var showClearFocusConfirmation by remember { mutableStateOf(false) }
 
     // Developer Mode State
-    var devModeClicks by remember { mutableIntStateOf(0) }
     var isDevModeEnabled by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
@@ -70,146 +88,73 @@ fun SettingsScreen(
         ActivityResultContracts.OpenDocument()
     ) { uri -> uri?.let { viewModel.importBackup(context, it) } }
 
-    if (showThemeDialog) {
+    if (showWidgetStackDialog) {
         AlertDialog(
-            onDismissRequest = { showThemeDialog = false },
-            title = { Text("Choose Theme") },
+            onDismissRequest = { showWidgetStackDialog = false },
+            title = { Text("Widget Stack Interval") },
             text = {
                 Column {
-                    ThemeSetting.entries.forEach { theme ->
+                    listOf(15, 30, 60).forEach { mins ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    viewModel.updateTheme(theme)
-                                    showThemeDialog = false
+                                    viewModel.updateWidgetStackInterval(mins)
+                                    showWidgetStackDialog = false
                                 }
                                 .padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(
-                                selected = currentTheme == theme,
+                                selected = currentWidgetStackInterval == mins,
                                 onClick = {
-                                    viewModel.updateTheme(theme)
-                                    showThemeDialog = false
+                                    viewModel.updateWidgetStackInterval(mins)
+                                    showWidgetStackDialog = false
                                 }
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = theme.name.lowercase().replaceFirstChar { it.uppercase() })
+                            Text("Every $mins minutes")
                         }
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { showThemeDialog = false }) { Text("Cancel") } }
+            confirmButton = { TextButton(onClick = { showWidgetStackDialog = false }) { Text("Cancel") } }
         )
     }
 
-    if (showPeakHoursDialog) {
+    if (showMiniQuickLogHelpDialog) {
         AlertDialog(
-            onDismissRequest = { showPeakHoursDialog = false },
-            title = { Text("Peak Focus Window") },
+            onDismissRequest = { showMiniQuickLogHelpDialog = false },
+            title = { Text("Pin Mini Quick Log Widget") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text(
-                        "When is your mind at its sharpest?",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    HourPickerRow(
-                        label = "Start",
-                        hour = currentPeakStart,
-                        onDecrement = { if (currentPeakStart > 0) viewModel.updatePeakStartHour(currentPeakStart - 1) },
-                        onIncrement = { if (currentPeakStart < currentPeakEnd - 1) viewModel.updatePeakStartHour(currentPeakStart + 1) }
-                    )
-                    HourPickerRow(
-                        label = "End",
-                        hour = currentPeakEnd,
-                        onDecrement = { if (currentPeakEnd > currentPeakStart + 1) viewModel.updatePeakEndHour(currentPeakEnd - 1) },
-                        onIncrement = { if (currentPeakEnd < 23) viewModel.updatePeakEndHour(currentPeakEnd + 1) }
-                    )
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("1) Long-press your home screen and tap Widgets.")
+                    Text("2) Find Neuromind > Mini Quick Log (1x1).")
+                    Text("3) Drag it to Home or Lock screen (if your launcher supports it).")
+                    Text("4) Tap the widget anytime to open voice logging instantly.")
                 }
             },
-            confirmButton = { TextButton(onClick = { showPeakHoursDialog = false }) { Text("Done") } }
+            confirmButton = {
+                TextButton(onClick = { showMiniQuickLogHelpDialog = false }) { Text("Got it") }
+            }
         )
     }
 
-    if (showSessionDialog) {
+    if (showQuickTileHelpDialog) {
         AlertDialog(
-            onDismissRequest = { showSessionDialog = false },
-            title = { Text("Session Length") },
+            onDismissRequest = { showQuickTileHelpDialog = false },
+            title = { Text("Add Quick Voice Log Tile") },
             text = {
-                Column {
-                    listOf(25, 45, 60, 90).forEach { mins ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    viewModel.updateSessionLength(mins)
-                                    showSessionDialog = false
-                                }
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = currentSessionLength == mins,
-                                onClick = {
-                                    viewModel.updateSessionLength(mins)
-                                    showSessionDialog = false
-                                }
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("$mins minutes")
-                        }
-                    }
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("1) Swipe down twice to open Quick Settings.")
+                    Text("2) Tap Edit (pencil icon).")
+                    Text("3) Find 'Quick Voice Log' and drag it into active tiles.")
+                    Text("4) Tap the tile to jump straight into voice capture.")
                 }
             },
-            confirmButton = { TextButton(onClick = { showSessionDialog = false }) { Text("Cancel") } }
-        )
-    }
-
-    if (showTaskStyleDialog) {
-        AlertDialog(
-            onDismissRequest = { showTaskStyleDialog = false },
-            title = { Text("Task Style") },
-            text = {
-                Column {
-                    TaskStyle.entries.forEach { style ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    viewModel.updateTaskStyle(style)
-                                    showTaskStyleDialog = false
-                                }
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = currentTaskStyle == style,
-                                onClick = {
-                                    viewModel.updateTaskStyle(style)
-                                    showTaskStyleDialog = false
-                                }
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Column {
-                                Text(style.name.lowercase().replaceFirstChar { it.uppercase() })
-                                val description = when (style) {
-                                    TaskStyle.ANALYTICAL -> "Structured, logical tasks first"
-                                    TaskStyle.CREATIVE -> "Open-ended, ideation-heavy tasks first"
-                                    TaskStyle.BALANCED -> "Mix of both types"
-                                }
-                                Text(
-                                    description,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = { TextButton(onClick = { showTaskStyleDialog = false }) { Text("Cancel") } }
+            confirmButton = {
+                TextButton(onClick = { showQuickTileHelpDialog = false }) { Text("Got it") }
+            }
         )
     }
 
@@ -235,242 +180,468 @@ fun SettingsScreen(
         )
     }
 
-    if (showResetConfirmation) {
+    if (showPrivacyPolicyDialog) {
         AlertDialog(
-            onDismissRequest = { showResetConfirmation = false },
-            icon = { Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-            title = { Text("Reset Task & Schedule Data?") },
-            text = { Text("This will delete all your tasks and timetable entries. Your settings (like Theme) will be saved.") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.resetAppData()
-                        showResetConfirmation = false
-                        Toast.makeText(context, "Data cleared", Toast.LENGTH_SHORT).show()
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) { Text("Reset") }
+            onDismissRequest = { showPrivacyPolicyDialog = false },
+            icon = { Icon(Icons.Default.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+            title = { Text("Privacy Policy") },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 360.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text("Last updated: August 30, 2026", style = MaterialTheme.typography.labelSmall)
+                    Text("Neuromind stores your tasks, timetable, feedback logs, and focus history in local app storage on your device.")
+                    Text("Voice notes use Android's system speech recognizer. Speech processing may be handled by your device provider (for many devices, Google). Neuromind receives the transcribed text result; Neuromind does not intentionally upload or keep raw audio recordings.")
+                    Text("If cloud speech services are active on your device, voice data handling and retention are controlled by your device account settings and provider policies, not directly by Neuromind.")
+                    Text("You can delete your local content from Neuromind by clearing feedback logs, deleting tasks, or resetting app data in Settings.")
+                    Text("Neuromind does not sell your data. Any future analytics/third-party services will be disclosed here before release.")
+                    Text("By using voice input, you acknowledge system-level speech processing may occur outside the app.")
+                }
             },
-            dismissButton = { TextButton(onClick = { showResetConfirmation = false }) { Text("Cancel") } }
+            confirmButton = {
+                TextButton(onClick = { showPrivacyPolicyDialog = false }) { Text("Close") }
+            }
+        )
+    }
+
+    if (showTermsDialog) {
+        AlertDialog(
+            onDismissRequest = { showTermsDialog = false },
+            icon = { Icon(Icons.Default.Gavel, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+            title = { Text("Terms & Conditions") },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 360.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text("Last updated: August 30, 2026", style = MaterialTheme.typography.labelSmall)
+                    Text("Neuromind is provided as a personal productivity and wellbeing support tool.")
+                    Text("It is not medical advice, diagnosis, treatment, or emergency support. In urgent situations, contact local emergency services.")
+                    Text("You are responsible for how you use reminders, scheduling suggestions, and voice transcription outputs.")
+                    Text("Speech transcription accuracy depends on your device recognizer and may contain errors. Review content before acting on it.")
+                    Text("You may export, restore, and delete your app data from the Settings section.")
+                    Text("Use of device-level services (such as system speech recognition and notifications) is subject to those platform terms.")
+                    Text("Continued use of Neuromind means you accept these terms and the Privacy Policy.")
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showTermsDialog = false }) { Text("Close") }
+            }
+        )
+    }
+
+    if (showResetConfirmation) {
+        DestructiveConfirmDialog(
+            title = "Reset task & schedule data?",
+            body = "This will delete all your tasks, timetable entries, events and unsaved drafts. Your settings (like Theme) will be saved. This can't be undone.",
+            confirmLabel = "Reset",
+            onConfirm = {
+                viewModel.resetAppData()
+                showResetConfirmation = false
+                Toast.makeText(context, "Data cleared", Toast.LENGTH_SHORT).show()
+            },
+            onDismiss = { showResetConfirmation = false }
         )
     }
 
     if (showRestoreConfirmation) {
-        AlertDialog(
-            onDismissRequest = { showRestoreConfirmation = false },
-            icon = { Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-            title = { Text("Restore from backup?") },
-            text = { Text("This replaces all current tasks, timetable, feedback, and focus history with the contents of the selected file. This can't be undone.") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showRestoreConfirmation = false
-                        restoreBackupLauncher.launch(arrayOf("application/json"))
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) { Text("Restore") }
+        DestructiveConfirmDialog(
+            title = "Restore from backup?",
+            body = "This replaces all current tasks, timetable and events, feedback, and focus history with the contents of the selected file, and clears unsaved drafts. This can't be undone.",
+            confirmLabel = "Restore",
+            onConfirm = {
+                showRestoreConfirmation = false
+                restoreBackupLauncher.launch(arrayOf("application/json"))
             },
-            dismissButton = { TextButton(onClick = { showRestoreConfirmation = false }) { Text("Cancel") } }
+            onDismiss = { showRestoreConfirmation = false }
         )
     }
 
-    Scaffold(
-        topBar = { NeuromindTopBar(title = "Settings") }
-    ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(innerPadding)
-        ) {
-            // Section: Appearance
-            item { SettingsSectionHeader("Appearance") }
-            item {
-                SettingsItem(
-                    icon = Icons.Default.Palette,
-                    title = "App Theme",
-                    subtitle = currentTheme.name.lowercase().replaceFirstChar { it.uppercase() },
-                    onClick = { showThemeDialog = true }
-                )
-            }
+    if (showClearFeedbackConfirmation) {
+        DestructiveConfirmDialog(
+            title = "Clear all feedback logs?",
+            body = "Every mood/energy check-in will be deleted and Insights will reset. This can't be undone.",
+            confirmLabel = "Clear",
+            onConfirm = {
+                showClearFeedbackConfirmation = false
+                viewModel.clearFeedbackLogs()
+                Toast.makeText(context, "Feedback logs cleared", Toast.LENGTH_SHORT).show()
+            },
+            onDismiss = { showClearFeedbackConfirmation = false }
+        )
+    }
 
-            // Section: Cognitive Profile
-            item { SettingsSectionHeader("Cognitive Profile") }
-            item {
-                SettingsItem(
-                    icon = Icons.Default.Schedule,
-                    title = "Peak Focus Hours",
-                    subtitle = "${formatHour(currentPeakStart)} – ${formatHour(currentPeakEnd)}",
-                    onClick = { showPeakHoursDialog = true }
-                )
-            }
-            item {
-                SettingsItem(
-                    icon = Icons.Default.Timer,
-                    title = "Session Length",
-                    subtitle = "$currentSessionLength minutes",
-                    onClick = { showSessionDialog = true }
-                )
-            }
-            item {
-                SettingsItem(
-                    icon = Icons.Default.Lightbulb,
-                    title = "Task Style",
-                    subtitle = currentTaskStyle.name.lowercase().replaceFirstChar { it.uppercase() },
-                    onClick = { showTaskStyleDialog = true }
-                )
-            }
+    if (showClearFocusConfirmation) {
+        DestructiveConfirmDialog(
+            title = "Clear all focus sessions?",
+            body = "Your deep-work history will be deleted. This can't be undone.",
+            confirmLabel = "Clear",
+            onConfirm = {
+                showClearFocusConfirmation = false
+                viewModel.clearFocusSessions()
+                Toast.makeText(context, "Focus sessions cleared", Toast.LENGTH_SHORT).show()
+            },
+            onDismiss = { showClearFocusConfirmation = false }
+        )
+    }
 
-            // Section: Quick Access
-            item { SettingsSectionHeader("Quick Access") }
-            item {
-                SettingsItem(
-                    icon = Icons.Default.CalendarViewWeek,
-                    title = "Weekly Timetable",
-                    onClick = onNavigateToTimetable,
-                    showArrow = true
-                )
-            }
-            item {
-                SettingsItem(
-                    icon = Icons.Default.Reviews,
-                    title = "End-of-Day Review",
-                    onClick = onNavigateToFeedback,
-                    showArrow = true
-                )
-            }
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = Dimens.ScreenPaddingHorizontal),
+        contentPadding = PaddingValues(bottom = Dimens.ScreenPaddingBottomWithNav)
+    ) {
+        item {
+            Spacer(Modifier.height(Dimens.ScreenPaddingTop))
+            ScreenHeader(title = "Settings")
+            Spacer(Modifier.height(Dimens.SectionGap))
+        }
 
-            // Section: Data (backup & restore — user-visible, not a dev tool)
-            item { SettingsSectionHeader("Data") }
-            item {
-                SettingsItem(
-                    icon = Icons.Default.FileDownload,
-                    title = "Export backup",
-                    subtitle = "Save all tasks, timetable, feedback, and focus history to a file",
-                    onClick = {
-                        val timestamp = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-                        exportBackupLauncher.launch("neuromind_backup_$timestamp.json")
-                    }
-                )
-            }
-            item {
-                SettingsItem(
-                    icon = Icons.Default.FileUpload,
-                    title = "Restore backup",
-                    subtitle = "Replace current data with a previously exported file",
-                    onClick = { showRestoreConfirmation = true }
-                )
-            }
-
-            // Section: About (With Dev Mode Trigger)
-            item { SettingsSectionHeader("About") }
-            item {
-                SettingsItem(
-                    icon = Icons.Default.Info,
-                    title = "Version",
-                    subtitle = if (isDevModeEnabled) "Neuromind v7.0 (Dev Mode Active)" else "Neuromind v7.0",
-                    onClick = {
-                        if (!isDevModeEnabled) {
-                            devModeClicks++
-                            if (devModeClicks >= 4) {
-                                isDevModeEnabled = true
-                                Toast.makeText(context, "Developer Mode Enabled", Toast.LENGTH_SHORT).show()
+        // Appearance + Notifications
+        item {
+            OrganicCard(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 2.dp)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            val next = when (currentTheme) {
+                                ThemeSetting.LIGHT -> ThemeSetting.DARK
+                                ThemeSetting.DARK -> ThemeSetting.SYSTEM
+                                ThemeSetting.SYSTEM -> ThemeSetting.LIGHT
                             }
+                            viewModel.updateTheme(next)
                         }
+                        .padding(vertical = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Appearance", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            currentTheme.name.lowercase().replaceFirstChar { it.uppercase() },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
+                        )
                     }
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Notifications", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                    OrganicToggle(checked = notificationsEnabled, onCheckedChange = { viewModel.toggleNotifications() })
+                }
+            }
+            Spacer(Modifier.height(Dimens.CardGap))
+        }
+
+        // Cognitive profile
+        item {
+            SectionKicker("Cognitive profile", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(8.dp))
+            OrganicCard {
+                Text("Peak focus window", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(8.dp))
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    PeakWindow.entries.forEach { window ->
+                        PillChip(
+                            label = window.label,
+                            selected = currentPeakWindow == window,
+                            onClick = { viewModel.selectPeakWindow(window) }
+                        )
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
+
+                Text("Session length", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(8.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SESSION_LENGTH_OPTIONS.forEach { mins ->
+                        EvenChip(
+                            label = "$mins min",
+                            selected = currentSessionLength == mins,
+                            onClick = { viewModel.updateSessionLength(mins) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
+
+                Text("Planning style", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(8.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TaskStyle.entries.forEach { style ->
+                        EvenChip(
+                            label = when (style) {
+                                TaskStyle.ANALYTICAL -> "Structured"
+                                TaskStyle.CREATIVE -> "Flexible"
+                                TaskStyle.BALANCED -> "Balanced"
+                            },
+                            selected = currentTaskStyle == style,
+                            onClick = { viewModel.updateTaskStyle(style) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(Dimens.CardGap))
+        }
+
+        // Quick access rows
+        item {
+            SettingsRow(
+                title = "End-of-day review",
+                onClick = onNavigateToFeedback
+            )
+            Spacer(Modifier.height(10.dp))
+            SettingsRow(
+                title = "Widget & notifications",
+                onClick = onNavigateToPreviews
+            )
+            Spacer(Modifier.height(10.dp))
+            SettingsRow(
+                title = "Pin Mini Quick Log Widget",
+                subtitle = "One-tap voice logging from home or lock screen",
+                onClick = { showMiniQuickLogHelpDialog = true }
+            )
+            Spacer(Modifier.height(10.dp))
+            SettingsRow(
+                title = "Add Quick Voice Log Tile",
+                subtitle = "One-swipe access from Android Quick Settings",
+                onClick = { showQuickTileHelpDialog = true }
+            )
+            Spacer(Modifier.height(10.dp))
+            SettingsRow(
+                title = "Widget Stack Interval",
+                subtitle = "Auto Stack rotates every $currentWidgetStackInterval min",
+                onClick = { showWidgetStackDialog = true },
+                showArrow = false
+            )
+            Spacer(Modifier.height(Dimens.CardGap))
+        }
+
+        // Data (backup & restore)
+        item {
+            SectionKicker("Data", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(8.dp))
+            SettingsRow(
+                title = "Export backup",
+                subtitle = "Save all tasks, timetable, feedback, and focus history to a file",
+                onClick = {
+                    val timestamp = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+                    exportBackupLauncher.launch("neuromind_backup_$timestamp.json")
+                },
+                showArrow = false
+            )
+            Spacer(Modifier.height(10.dp))
+            SettingsRow(
+                title = "Restore backup",
+                subtitle = "Replace current data with a previously exported file",
+                onClick = { showRestoreConfirmation = true },
+                showArrow = false
+            )
+            Spacer(Modifier.height(Dimens.CardGap))
+        }
+
+        // About
+        item {
+            SectionKicker("About", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(8.dp))
+            SettingsRow(
+                title = "Privacy Policy",
+                subtitle = "How voice, text, and local data are handled",
+                onClick = { showPrivacyPolicyDialog = true }
+            )
+            Spacer(Modifier.height(10.dp))
+            SettingsRow(
+                title = "Terms & Conditions",
+                subtitle = "Usage terms and important disclaimers",
+                onClick = { showTermsDialog = true }
+            )
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text = if (isDevModeEnabled) {
+                    "Neuromind v${appInfo.versionName} (Dev Mode Active)"
+                } else {
+                    "Neuromind v${appInfo.versionName} — Preview launch animation"
+                },
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    // Tap matches the design's replay affordance; long-press keeps
+                    // the pre-existing hidden dev-mode unlock without the two
+                    // gestures fighting over the same single-tap event.
+                    .combinedClickable(
+                        onClick = onReplaySplash,
+                        onLongClick = {
+                            isDevModeEnabled = !isDevModeEnabled
+                            Toast.makeText(
+                                context,
+                                if (isDevModeEnabled) "Developer Mode Enabled" else "Developer Mode Disabled",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    )
+                    .padding(vertical = 8.dp)
+            )
+        }
+
+        // Developer Options (hidden until unlocked)
+        if (isDevModeEnabled) {
+            item {
+                Spacer(Modifier.height(Dimens.CardGap))
+                SectionKicker("Developer options", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(8.dp))
+            }
+            item {
+                SettingsRow(
+                    title = "Load Sample Tasks",
+                    subtitle = "Adds 5 realistic tasks at once",
+                    onClick = {
+                        viewModel.generateDemoData()
+                        Toast.makeText(context, "Tasks Added", Toast.LENGTH_SHORT).show()
+                    },
+                    showArrow = false
+                )
+                Spacer(Modifier.height(10.dp))
+                SettingsRow(
+                    title = "Load Full Timetable",
+                    subtitle = "Adds a full Mon-Fri class schedule",
+                    onClick = {
+                        viewModel.generateBaseTimetable()
+                        Toast.makeText(context, "Timetable Loaded", Toast.LENGTH_SHORT).show()
+                    },
+                    showArrow = false
+                )
+                Spacer(Modifier.height(10.dp))
+                SettingsRow(
+                    title = "Test Notifications",
+                    subtitle = "Trigger a notification immediately",
+                    onClick = { viewModel.testNotification(context) },
+                    showArrow = false
+                )
+                Spacer(Modifier.height(10.dp))
+                SettingsRow(
+                    title = "Reset App Data",
+                    subtitle = "Clear Tasks & Timetable DB",
+                    onClick = { showResetConfirmation = true },
+                    showArrow = false
+                )
+                Spacer(Modifier.height(10.dp))
+                SettingsRow(
+                    title = "Seed 14-Day Feedback",
+                    subtitle = "Populate Insights & retro cards with sample data",
+                    onClick = {
+                        viewModel.seedFeedbackLogs()
+                        Toast.makeText(context, "14 days of feedback added", Toast.LENGTH_SHORT).show()
+                    },
+                    showArrow = false
+                )
+                Spacer(Modifier.height(10.dp))
+                SettingsRow(
+                    title = "Clear Feedback Logs",
+                    subtitle = "Wipe the FeedbackLog table only",
+                    onClick = { showClearFeedbackConfirmation = true },
+                    showArrow = false
+                )
+                Spacer(Modifier.height(10.dp))
+                SettingsRow(
+                    title = "Seed Focus Sessions",
+                    subtitle = "Populate the Deep Work card with sample sessions",
+                    onClick = {
+                        viewModel.seedFocusSessions()
+                        Toast.makeText(context, "14 focus sessions added", Toast.LENGTH_SHORT).show()
+                    },
+                    showArrow = false
+                )
+                Spacer(Modifier.height(10.dp))
+                SettingsRow(
+                    title = "Clear Focus Sessions",
+                    subtitle = "Wipe the focus_sessions table only",
+                    onClick = { showClearFocusConfirmation = true },
+                    showArrow = false
+                )
+                Spacer(Modifier.height(10.dp))
+                SettingsRow(
+                    title = "App & DB Info",
+                    subtitle = "Version, DB version, and row counts",
+                    onClick = { showAppInfoDialog = true },
+                    showArrow = false
                 )
             }
+        }
+    }
+}
 
-            // Section: Developer Options (Hidden until unlocked)
-            if (isDevModeEnabled) {
-                item { SettingsSectionHeader("Developer Options") }
-                item {
-                    SettingsItem(
-                        icon = Icons.Default.AddCircleOutline,
-                        title = "Load Sample Tasks",
-                        subtitle = "Adds 5 realistic tasks at once",
-                        onClick = {
-                            viewModel.generateDemoData()
-                            Toast.makeText(context, "Tasks Added", Toast.LENGTH_SHORT).show()
-                        }
-                    )
+@Composable
+private fun EvenChip(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    androidx.compose.foundation.layout.Box(
+        modifier = modifier
+            .clip(MaterialTheme.shapes.small)
+            .background(if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.background)
+            .clickable(onClick = onClick)
+            .padding(vertical = 9.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+private fun SettingsRow(
+    title: String,
+    subtitle: String? = null,
+    onClick: () -> Unit,
+    showArrow: Boolean = true
+) {
+    OrganicCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        contentPadding = PaddingValues(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                if (subtitle != null) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                item {
-                    SettingsItem(
-                        icon = Icons.Default.CalendarViewWeek,
-                        title = "Load Full Timetable",
-                        subtitle = "Adds a full Mon-Fri class schedule",
-                        onClick = {
-                            viewModel.generateBaseTimetable()
-                            Toast.makeText(context, "Timetable Loaded", Toast.LENGTH_SHORT).show()
-                        }
-                    )
-                }
-                item {
-                    SettingsItem(
-                        icon = Icons.Default.NotificationsActive,
-                        title = "Test Notifications",
-                        subtitle = "Trigger a notification immediately",
-                        onClick = { viewModel.testNotification(context) }
-                    )
-                }
-                item {
-                    SettingsItem(
-                        icon = Icons.Default.DeleteForever,
-                        title = "Reset App Data",
-                        subtitle = "Clear Tasks & Timetable DB",
-                        onClick = { showResetConfirmation = true }
-                    )
-                }
-                item {
-                    SettingsItem(
-                        icon = Icons.Default.BarChart,
-                        title = "Seed 14-Day Feedback",
-                        subtitle = "Populate Insights & retro cards with sample data",
-                        onClick = {
-                            viewModel.seedFeedbackLogs()
-                            Toast.makeText(context, "14 days of feedback added", Toast.LENGTH_SHORT).show()
-                        }
-                    )
-                }
-                item {
-                    SettingsItem(
-                        icon = Icons.Default.DeleteSweep,
-                        title = "Clear Feedback Logs",
-                        subtitle = "Wipe the FeedbackLog table only",
-                        onClick = {
-                            viewModel.clearFeedbackLogs()
-                            Toast.makeText(context, "Feedback logs cleared", Toast.LENGTH_SHORT).show()
-                        }
-                    )
-                }
-                item {
-                    SettingsItem(
-                        icon = Icons.Default.Timer,
-                        title = "Seed Focus Sessions",
-                        subtitle = "Populate the Deep Work card with sample sessions",
-                        onClick = {
-                            viewModel.seedFocusSessions()
-                            Toast.makeText(context, "14 focus sessions added", Toast.LENGTH_SHORT).show()
-                        }
-                    )
-                }
-                item {
-                    SettingsItem(
-                        icon = Icons.Default.DeleteSweep,
-                        title = "Clear Focus Sessions",
-                        subtitle = "Wipe the focus_sessions table only",
-                        onClick = {
-                            viewModel.clearFocusSessions()
-                            Toast.makeText(context, "Focus sessions cleared", Toast.LENGTH_SHORT).show()
-                        }
-                    )
-                }
-                item {
-                    SettingsItem(
-                        icon = Icons.Default.Storage,
-                        title = "App & DB Info",
-                        subtitle = "Version, DB version, and row counts",
-                        onClick = { showAppInfoDialog = true }
-                    )
-                }
+            }
+            if (showArrow) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp)
+                )
             }
         }
     }
@@ -488,65 +659,19 @@ private fun AppInfoRow(label: String, value: String) {
 }
 
 @Composable
-private fun HourPickerRow(
-    label: String,
-    hour: Int,
-    onDecrement: () -> Unit,
-    onIncrement: () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(label, style = MaterialTheme.typography.bodyLarge)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onDecrement) {
-                Icon(Icons.Default.Remove, contentDescription = "Decrease hour")
-            }
-            Text(
-                text = formatHour(hour),
-                modifier = Modifier.width(64.dp),
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.bodyLarge
-            )
-            IconButton(onClick = onIncrement) {
-                Icon(Icons.Default.Add, contentDescription = "Increase hour")
-            }
-        }
-    }
-}
-
-private fun formatHour(hour: Int): String = when {
-    hour == 0 -> "12 AM"
-    hour < 12 -> "$hour AM"
-    hour == 12 -> "12 PM"
-    else -> "${hour - 12} PM"
-}
-
-@Composable
-fun SettingsSectionHeader(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 16.dp, top = 24.dp, bottom = 8.dp)
-    )
-}
-
-@Composable
-fun SettingsItem(
-    icon: ImageVector,
+private fun DestructiveConfirmDialog(
     title: String,
-    subtitle: String? = null,
-    onClick: () -> Unit,
-    showArrow: Boolean = false
+    body: String,
+    confirmLabel: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
 ) {
-    ListItem(
-        headlineContent = { Text(title) },
-        supportingContent = subtitle?.let { { Text(it) } },
-        leadingContent = { Icon(icon, contentDescription = null) },
-        trailingContent = if (showArrow) { { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) } } else null,
-        modifier = Modifier.clickable { onClick() }
+    OrganicConfirmDialog(
+        title = title,
+        message = body,
+        confirmLabel = confirmLabel,
+        onConfirm = onConfirm,
+        onDismiss = onDismiss,
+        icon = Icons.Default.Warning
     )
 }

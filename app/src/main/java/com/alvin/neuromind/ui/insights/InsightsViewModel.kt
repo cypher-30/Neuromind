@@ -22,14 +22,18 @@ import java.time.format.TextStyle
 import java.util.Locale
 import kotlin.math.roundToInt
 
+data class SubjectStat(val subject: String, val count: Int, val pct: Float)
+
 data class InsightsUiState(
     val completionData: List<Pair<String, Int>> = emptyList(),
     val averageMood: String = "N/A",
     val averageEnergy: Int = 0,
+    val dominantTone: String = "N/A",
     val wellnessScore: Float = 0.0f,
     val recentNotes: List<FeedbackLog> = emptyList(),
     val retroInsights: RetroInsights? = null,
     val focusSummary: FocusSummary? = null,
+    val subjectBreakdown: List<SubjectStat> = emptyList(),
     val isLoading: Boolean = true
 )
 
@@ -77,6 +81,17 @@ class InsightsViewModel(private val repository: TaskRepository) : ViewModel() {
             avgMoodStr = "$avgMoodScore/5"
         }
 
+        val dominantTone = recentFeedback
+            .mapNotNull { it.toneLabel }
+            .groupingBy { it }
+            .eachCount()
+            .maxByOrNull { it.value }
+            ?.key
+            ?.name
+            ?.lowercase()
+            ?.replaceFirstChar { it.uppercase() }
+            ?: "N/A"
+
         // Recent journal notes (non-blank comments, newest first, capped at 5)
         val recentNotes = feedbackLogs.filter { !it.comment.isNullOrBlank() }.take(5)
 
@@ -89,14 +104,28 @@ class InsightsViewModel(private val repository: TaskRepository) : ViewModel() {
         else
             null
 
+        // By-subject breakdown — completed tasks grouped by their free-text
+        // subject, sorted by volume, normalized against the top subject so
+        // bars read relative to each other rather than an absolute scale.
+        val subjectCounts = tasks
+            .filter { it.isCompleted && !it.subject.isNullOrBlank() }
+            .groupingBy { it.subject!! }
+            .eachCount()
+        val subjectMax = subjectCounts.values.maxOrNull()?.coerceAtLeast(1) ?: 1
+        val subjectBreakdown = subjectCounts.entries
+            .sortedByDescending { it.value }
+            .map { (subject, count) -> SubjectStat(subject, count, count.toFloat() / subjectMax) }
+
         InsightsUiState(
             completionData = completionsByDay,
             averageMood = avgMoodStr,
             averageEnergy = avgEnergy,
+            dominantTone = dominantTone,
             wellnessScore = wellnessScore,
             recentNotes = recentNotes,
             retroInsights = retroInsights,
             focusSummary = focusSummary,
+            subjectBreakdown = subjectBreakdown,
             isLoading = false
         )
     }.stateIn(
