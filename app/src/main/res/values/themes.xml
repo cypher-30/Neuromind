@@ -1,8 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <style name="Theme.Neuromind.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_blank</item>
+        <item name="windowSplashScreenAnimationDuration">0</item>
+        <item name="postSplashScreenTheme">@style/Theme.Neuromind</item>
+    </style>
+
     <style name="Theme.Neuromind" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Paint the system window brand-teal before Compose draws,
-             preventing the white flash on cold launch. -->
+        <!-- Paint the system window cream before Compose draws, preventing flash. -->
         <item name="android:windowBackground">@color/splash_background</item>
     </style>
 </resources>
