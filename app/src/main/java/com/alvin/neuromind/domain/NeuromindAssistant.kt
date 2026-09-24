@@ -97,7 +97,7 @@ object NeuromindAssistant {
             AssistantIntent.FOCUS_REQUEST   -> focusResponse(tasks)
             AssistantIntent.STATS_QUERY     -> statsResponse(tasks, feedbackLogs)
             AssistantIntent.FREE_TIME_QUERY -> freeTimeResponse(timetable)
-            AssistantIntent.SUGGESTION_QUERY -> suggestionResponse(tasks, timetable, profile)
+            AssistantIntent.SUGGESTION_QUERY -> suggestionResponse(tasks, timetable, profile, feedbackLogs)
             AssistantIntent.GREETING        -> greetingResponse()
             // CREATE_TASK and COMPLETE_TASK are handled in AssistantViewModel (need repository)
             AssistantIntent.CREATE_TASK     -> AssistantResponse("Creating your task now…")
@@ -124,8 +124,8 @@ object NeuromindAssistant {
     private fun scheduleResponse(timetable: List<TimetableEntry>): AssistantResponse {
         val today = LocalDate.now()
         val todayEntries = timetable
-            .filter { it.dayOfWeek == today.dayOfWeek }
-            .sortedBy { it.startTime }
+            .filter { it.occursOn(today) }
+            .sortedWith(compareByDescending<TimetableEntry> { it.isAllDay }.thenBy { it.startTime })
 
         return if (todayEntries.isEmpty()) {
             AssistantResponse(
@@ -136,7 +136,8 @@ object NeuromindAssistant {
             val formatter = DateTimeFormatter.ofPattern("h:mm a")
             val list = todayEntries.joinToString("\n") { entry ->
                 val venue = entry.venue?.let { " @ $it" } ?: ""
-                "• ${entry.title} at ${entry.startTime.format(formatter)}$venue"
+                val time = if (entry.isAllDay) "all day" else "at ${entry.startTime.format(formatter)}"
+                "• ${entry.title} $time$venue"
             }
             AssistantResponse(
                 "Here's your schedule for today:\n\n$list",
@@ -190,7 +191,7 @@ object NeuromindAssistant {
             AssistantResponse("No pending tasks to focus on. Enjoy your free time!")
         } else {
             AssistantResponse(
-                "Starting a focus session for '${topTask.title}'. You've got this!",
+                "Ready to focus on '${topTask.title}'? Start a session whenever you're set. You've got this!",
                 actionType = AssistantAction.NAVIGATE_FOCUS,
                 taskId = topTask.id
             )
@@ -254,9 +255,10 @@ object NeuromindAssistant {
     private fun suggestionResponse(
         tasks: List<Task>,
         timetable: List<TimetableEntry>,
-        profile: CognitiveProfile
+        profile: CognitiveProfile,
+        feedbackLogs: List<FeedbackLog>
     ): AssistantResponse {
-        val suggestion = SuggestionEngine.suggest(tasks, timetable, profile)
+        val suggestion = SuggestionEngine.suggest(tasks, timetable, profile, feedbackLogs)
         return if (suggestion != null) {
             AssistantResponse(
                 message = suggestion.message,
