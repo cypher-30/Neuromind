@@ -33,6 +33,11 @@
 - [x] **Today's progress** — Home progress card, Pending/Done tiles and the
       Daily Progress widget count only tasks due today ("0 of 7 done";
       "No tasks due today" when none)
+- [x] **Rotating progress card** — Home card animates every 6 s (or on tap)
+      between "Today's progress" and "All due tasks" (open dated tasks +
+      finished ones not yet past due, e.g. "0 of 6 done · 1 overdue · 5
+      upcoming"). Device-verified on real data. Completing an overdue task
+      drops it from that total (no completion timestamp to credit it).
 - [x] **Home** — "Happening now" card, then "Up next", both above coaching
       cards and Today's priorities; refreshes every minute and at midnight
 - [x] Task edit keeps `isCompleted`/`createdAt` (was reset on every edit);
