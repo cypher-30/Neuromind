@@ -1,7 +1,123 @@
 # Neuromind — Progress Tracker
 
-**Current stable version:** v7.0 (all 15 pillars complete + Focus History + Home-screen Widget)
-**Last updated:** 2026-06-16
+**Current stable version in Gradle:** v7.0 (`versionCode = 5`, `versionName = "7.0"`)
+**Last updated:** 2026-09-25
+
+---
+
+## In progress — Events, reminders, drafts, safer deletes (build- and partly device-verified)
+
+`compileDebugKotlin`, `testDebugUnitTest` (90 tests) and `assembleDebug` pass.
+
+- [x] **DB v11 → v12** (`MIGRATION_11_12`): `timetable_entries.isAllDay`,
+      `timetable_entries.reminderMode`, new `editor_drafts` table
+- [x] **Events** — Task/Event selector on the add screen; `ui/events/`
+      editor (date, start/end or all-day, venue, notes, reminder chips,
+      effective reminder time, confirmed delete). Events are one-time
+      `TimetableEntry` rows and never count as tasks
+- [x] **Event reminders** — `EventReminderPolicy` (default: 10 min before;
+      9 PM the evening before for events starting before 9 AM; 9 AM for
+      all-day), `EventReminderScheduler` exact alarms with inexact fallback,
+      `EventReminderReceiver` re-arms on boot/time change/package update;
+      notification tap opens the event. Warns when notifications or
+      Alarms & reminders access are missing
+- [x] **Drafts** — task, event and weekly-class forms auto-save to
+      `editor_drafts`; "Restored your unsaved draft" banner; confirmed
+      "Discard draft". Drafts are local only (excluded from backups, cleared
+      by reset/restore)
+- [x] **Deletion safety** — confirmation for timetable/event delete, event
+      delete, Clear Feedback Logs, Clear Focus Sessions, draft discard
+      (task delete, reset and restore already confirmed)
+- [x] **Bottom nav** — every tab goes straight to its root (fixes Home not
+      working after Tasks → Timetable)
+- [x] **Today's progress** — Home progress card, Pending/Done tiles and the
+      Daily Progress widget count only tasks due today ("0 of 7 done";
+      "No tasks due today" when none)
+- [x] **Home** — "Happening now" card, then "Up next", both above coaching
+      cards and Today's priorities; refreshes every minute and at midnight
+- [x] Task edit keeps `isCompleted`/`createdAt` (was reset on every edit);
+      due-date picker no longer shifts a day in negative UTC offsets
+- [x] **Theme consistency** — `OrganicConfirmDialog` (warm sheet, Caprasimo
+      title, pill Cancel + brick-red confirm) used by every delete/clear/
+      reset/restore/discard prompt; `surfaceContainer*`/`inverse*` roles
+      defined so M3 dialogs, date/time pickers and menus stop using stock
+      lavender
+- [x] **Ask** answers in the chat and offers an "Open Timetable/Tasks/
+      Insights" or "Start focus" pill instead of navigating away on its own
+- [x] Device-tested 2026-09-25 on OnePlus CPH2159 (OxygenOS) with seeded
+      data, then the real data restored: v11→v12 migration kept all rows;
+      today-only progress (2→3 of 7); Home/Tasks/Ask tab switching incl.
+      Tasks → Timetable → Home; date-grouped timetable (Today/Tomorrow/
+      weekday/Later/Past events); every delete/clear/reset/restore/discard
+      dialog (Cancel and Back keep data, confirm deletes only the target);
+      task + event drafts survive Back and app restart; event reminder
+      fired on time and its tap opened the event; default reminder times
+      (9 AM all-day, 9 PM evening before for pre-9 AM, 1 day before);
+      all-day event blocks free-time planning; no crashes
+- [ ] Still untested on device: rotation (OxygenOS blocks adb rotation),
+      reboot/time-zone re-arming, reminders without exact-alarm access,
+      midnight rollover, Daily Progress widget
+
+---
+
+## In progress — Organic design system redesign (build-verified, device checklist pending)
+
+Full re-skin onto the Claude Design "Organic" system (`Neuromind.dc.html`) —
+see `HANDOFF.md` and `C:\Users\Alvin\.claude\plans\bright-jumping-storm.md`
+for full detail. All 6 phases implemented; `compileDebugKotlin` /
+`testDebugUnitTest` / `assembleDebug` all pass.
+
+- [x] Tokens: `ui/theme/Color.kt`, `Theme.kt`, `Type.kt` (Caprasimo/Figtree),
+      `Shape.kt`, new `Dimens.kt`/`Elevation.kt`
+- [x] Shared components: `ui/components/{OrganicCard,ScreenHeader,Buttons,
+      Chips,SectionKicker,OrganicTextField,StatTile,EmptyState,OrganicToggle,
+      AnimatedBarChart}.kt`; `NeuromindTopBar.kt` deleted
+- [x] Data: `Task.subject`/`category` + migration 9→10, `PeakWindow` /
+      notifications prefs, dashboard streak
+- [x] Shell: 5-item bottom nav (Home/Tasks/Ask/Insights/Settings), onboarding
+      flow, widget/notification `PreviewsScreen`, Timetable folded into Tasks
+- [x] All 8 screens restyled: Dashboard, Tasks, Add/Edit, Focus, Feedback,
+      Insights, **Assistant**, **Settings** (last two finished 2026-08-30 —
+      were still on old M3 chrome despite an earlier "done" claim)
+- [x] Widget: `TodayWidget.kt` Glance palette matches Organic tokens
+- [ ] Manual device checklist (migration on live data, cold-launch flash,
+      onboarding gate, both themes, fonts, deep links, backup/restore
+      round-trip, widget re-add) — not yet run
+
+---
+
+## What's Done (post-v7 updates — Voice Quick Log, Tone Analysis, Quick Surfaces)
+
+### Voice Quick Log pipeline
+- [x] **Quick Settings tile** (`QuickLogTileService`) added for one-swipe entry into voice logging
+- [x] **Bridge activity** (`QuickLogEntryActivity`) now handles microphone permission + speech recognizer launch + transcript handoff
+- [x] **Route contract** (`AppRouteIntents`) supports auto-voice, launch token, and optional prefilled note extras
+- [x] **Feedback route args** in `NeuromindApp` updated to `autoVoice`, `launchToken`, and `prefill`
+- [x] **Feedback auto-start guard** runs voice launch on resume and de-duplicates by launch token
+
+### Tone analysis + persistence
+- [x] **`ToneAnalyzer`** added with weighted lexicon, negation handling, and intensifier-aware scoring
+- [x] **`FeedbackLog`** extended with `toneLabel` and `sentimentScore`
+- [x] **Room migration v10 -> v11** (`MIGRATION_10_11`) adds `toneLabel` + `sentimentScore` columns
+- [x] **Insights** now surfaces dominant tone + per-note tone metadata
+- [x] **Feedback success state** shows detected tone label after submit
+
+### Energy suggestions (explicit LOW/MEDIUM/HIGH)
+- [x] `SuggestionEngine` now resolves `EnergyState` from recent feedback energy logs
+- [x] Task matching is explicit per state (LOW/MEDIUM/HIGH) by difficulty/priority/duration
+- [x] Dashboard, worker, and assistant all pass feedback logs so energy-state logic is consistent
+- [x] Overdue behavior preserved by excluding overdue tasks from energy-match before overdue alert checks
+
+### Widgets, tile UX, and legal transparency
+- [x] **Mini Quick Log widget (1x1)** added with `home_screen|keyguard` support
+- [x] **Quick Actions widget** reverted to generic actions (no longer repurposed as voice-only)
+- [x] **Quick Voice Log tile** now gives active->inactive visual feedback and lock-safe launch flow
+- [x] **Settings -> Quick Access** includes setup guides for Mini Quick Log widget and Quick Voice Log tile
+- [x] **Settings -> About** now includes in-app **Privacy Policy** and **Terms & Conditions** dialogs
+
+### Validation
+- [x] Compile checks run during implementation: `:app:compileDebugKotlin`
+- [x] Unit tests updated and verified for changed logic (including `SuggestionEngineTest` and `ToneAnalyzerTest`)
 
 ---
 
@@ -18,7 +134,7 @@
 - [x] **`FocusViewModel`** — `recordCompletedSession()` writes to Room; invoked on natural timer completion (not on End Session / Reset)
 - [x] **`FocusStats.summarize()`** — pure object; takes session list + optional referenceDate; returns `FocusSummary` (totalMinutes, sessionCount, minutesByDay × 7, bestDayLabel)
 - [x] **Insights "Deep Work" card** — total focus minutes + session count + best day headline; 7-day animated mini bar chart (spring bounce, same pattern as Tasks Completed chart); uses tertiary colour for bars
-- [x] **Dev tools** — "Seed Focus Sessions" (14 varied sessions over 7 days) and "Clear Focus Sessions"; "App & DB Info" dialog now shows focus session count and DB version 9
+- [x] **Dev tools** — "Seed Focus Sessions" (14 varied sessions over 7 days) and "Clear Focus Sessions"; "App & DB Info" dialog shows focus session count and current DB schema version
 
 ### Home-screen Widget (new feature)
 - [x] **Jetpack Glance `TodayWidget`** — `GlanceAppWidget` reads today's incomplete tasks (up to 3) + next timetable entry; renders via Glance composables inside `GlanceTheme`; tapping opens the app
@@ -188,6 +304,9 @@
 - [x] Tasks completed input
 - [x] Additional thoughts text field
 - [x] Submits to Room `FeedbackLog` table with per-entry timestamp
+- [x] Voice note capture via Android speech recognizer
+- [x] "Save as task" from captured or typed journal notes
+- [x] Tone analysis persisted per log (`toneLabel`, `sentimentScore`)
 
 ### Insights (Pillar 13 — Retrospective Insight Engine)
 - [x] Weekly completion bar chart
@@ -198,6 +317,8 @@
 - [x] **"Best Day" card** — top weekday over last 30 days (tie → earlier day of week)
 - [x] **"On-Track Rate" card** — circular progress + coaching tip (<50%: suggest smaller tasks; >80%: positive reinforcement)
 - [x] **Mood × Productivity table** — avg tasks completed per mood level (emoji + number)
+- [x] **Dominant Tone metric** from recent feedback
+- [x] **Per-note tone metadata** shown in Recent Journal Entries
 - [x] All retrospective cards hidden when fewer than 7 days of data exist
 
 ### AI Assistant (Pillar 15)
@@ -213,7 +334,8 @@
 - [x] Messages in-memory only (not persisted to Room)
 
 ### Context-Aware Suggestions (Pillar 11)
-- [x] `SuggestionEngine` — pure function; first-match priority: PEAK_HOUR_NUDGE → FREE_SLOT_NUDGE → ENERGY_MATCH → OVERDUE_ALERT
+- [x] `SuggestionEngine` — pure function; first-match priority: PEAK_HOUR_NUDGE -> FREE_SLOT_NUDGE -> ENERGY_MATCH -> OVERDUE_ALERT
+- [x] `ENERGY_MATCH` uses explicit energy states (LOW/MEDIUM/HIGH) derived from recent feedback logs
 - [x] `SuggestionWorker` — daily `PeriodicWorkRequest` aligned to peak start hour; re-scheduled when user updates peak hours in Settings
 - [x] Dashboard Suggestion card with optional task navigation action
 
@@ -238,6 +360,8 @@
 - [x] Theme picker dialog (Light / Dark / System)
 - [x] **Cognitive Profile** section (peak hours, session length, task style)
 - [x] Navigation links to Timetable and Feedback screens
+- [x] Quick Access guides for Mini Quick Log widget + Quick Voice Log tile
+- [x] About section includes Privacy Policy and Terms & Conditions dialogs
 - [x] Developer mode (unlock by tapping version 4×)
   - Generate 20 diverse demo tasks
   - Generate full Mon–Fri academic timetable
@@ -249,6 +373,12 @@
 - [x] 45-minute check window (battery-saver friendly)
 - [x] Test notification button in Settings
 - [x] Daily context-aware suggestion notification via `SuggestionWorker`
+- [x] Notification action button for quick logging (`Quick log`)
+
+### Widgets and Quick Surfaces
+- [x] Widget suite includes standard cards, rotating stacks, and mini widgets (`Mini Status`, `Mini Next`, `Mini Quick Log`)
+- [x] Mini Quick Log widget launches voice quick-log bridge activity
+- [x] Quick Settings tile (`Quick Voice Log`) launches the same voice quick-log flow
 
 ### Tests
 - [x] `SmartInputHelperTest` — 5 NLP parsing tests
@@ -265,4 +395,6 @@
 
 ## Known Issues & Technical Debt
 
-All previously tracked issues resolved as of v6.0. No open technical debt.
+- Organic redesign manual checklist has not been run; the events/reminders checklist is partly device-verified (see above).
+- Room `exportSchema = false`, so there are no migration test fixtures; migrations are only verified by build + device testing.
+- Legacy one-time timetable entries (created before v12) keep the old polling notification until they are edited in the event editor.
