@@ -2,9 +2,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-    <uses-permission android:name="android.permission.VIBRATE"/>
-    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Punctual event reminders ("Alarms & reminders" access on Android 12+). -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- Re-arm event reminders after a reboot. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
         android:name=".data.NeuromindApplication"
@@ -17,26 +22,252 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Neuromind"
         tools:targetApi="31">
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
-            android:theme="@style/Theme.Neuromind">
+            android:launchMode="singleTask"
+            android:theme="@style/Theme.Neuromind.Starting">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".QuickLogEntryActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Neuromind" />
+
+        <receiver
+            android:name=".domain.EventReminderReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
+            </intent-filter>
+        </receiver>
         <receiver
             android:name=".ui.widget.TodayWidgetReceiver"
+            android:label="@string/widget_today_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.intent.action.DATE_CHANGED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/today_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".ui.widget.QuickActionsWidgetReceiver"
+            android:label="@string/widget_quick_actions_label"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
-                android:resource="@xml/today_widget_info" />
+                android:resource="@xml/quick_actions_widget_info" />
         </receiver>
+
+        <receiver
+            android:name=".ui.widget.FocusShortcutsWidgetReceiver"
+            android:label="@string/widget_focus_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/focus_shortcuts_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".ui.widget.NextClassWidgetReceiver"
+            android:label="@string/widget_next_class_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/next_class_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".ui.widget.DailyProgressWidgetReceiver"
+            android:label="@string/widget_progress_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/daily_progress_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".ui.widget.StreakWellbeingWidgetReceiver"
+            android:label="@string/widget_streak_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/streak_wellbeing_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".ui.widget.SmartSuggestionWidgetReceiver"
+            android:label="@string/widget_suggestion_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/smart_suggestion_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".ui.widget.HeatmapWidgetReceiver"
+            android:label="@string/widget_heatmap_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/heatmap_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".ui.widget.AcademicWidgetReceiver"
+            android:label="@string/widget_academic_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/academic_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".ui.widget.MotivatorWidgetReceiver"
+            android:label="@string/widget_motivator_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/motivator_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".ui.widget.MiniQuickLogWidgetReceiver"
+            android:label="@string/widget_mini_quick_log_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/mini_quick_log_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".ui.widget.MiniStatusWidgetReceiver"
+            android:label="@string/widget_mini_status_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/mini_status_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".ui.widget.MiniNextWidgetReceiver"
+            android:label="@string/widget_mini_next_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/mini_next_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".ui.widget.ConfigurableStackWidgetReceiver"
+            android:label="@string/widget_stack_auto_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/stack_auto_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".ui.widget.RotatingStack15WidgetReceiver"
+            android:label="@string/widget_stack_15_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/stack_15_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".ui.widget.RotatingStack30WidgetReceiver"
+            android:label="@string/widget_stack_30_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/stack_30_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".ui.widget.RotatingStack60WidgetReceiver"
+            android:label="@string/widget_stack_60_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/stack_60_widget_info" />
+        </receiver>
+
+        <service
+            android:name=".ui.tile.QuickLogTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_launcher_monochrome"
+            android:label="@string/quick_log_tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
     </application>
+
 </manifest>
