@@ -21,20 +21,21 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+data class PendingNav(val action: AssistantAction, val taskId: Int? = null)
+
 data class ChatMessage(
     val id: Int,
     val text: String,
     val isUser: Boolean,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    /** Optional follow-up the user can tap; replies never navigate on their own. */
+    val action: PendingNav? = null
 )
-
-data class PendingNav(val action: AssistantAction, val taskId: Int? = null)
 
 data class AssistantUiState(
     val messages: List<ChatMessage> = emptyList(),
     val inputText: String = "",
-    val isThinking: Boolean = false,
-    val pendingNavigation: PendingNav? = null
+    val isThinking: Boolean = false
 )
 
 class AssistantViewModel(
@@ -71,9 +72,9 @@ class AssistantViewModel(
                 AssistantIntent.COMPLETE_TASK -> handleCompleteTask(text, tasks)
                 else -> {
                     val response = NeuromindAssistant.respond(intent, tasks, timetable, profile, feedbackLogs)
-                    val botMsg   = ChatMessage(id = nextId++, text = response.message, isUser = false)
-                    val pending  = response.actionType?.let { PendingNav(it, response.taskId) }
-                    _uiState.update { it.copy(messages = it.messages + botMsg, isThinking = false, pendingNavigation = pending) }
+                    val action   = response.actionType?.let { PendingNav(it, response.taskId) }
+                    val botMsg   = ChatMessage(id = nextId++, text = response.message, isUser = false, action = action)
+                    _uiState.update { it.copy(messages = it.messages + botMsg, isThinking = false) }
                 }
             }
         }
@@ -121,10 +122,6 @@ class AssistantViewModel(
 
         val botMsg = ChatMessage(id = nextId++, text = reply, isUser = false)
         _uiState.update { it.copy(messages = it.messages + botMsg, isThinking = false) }
-    }
-
-    fun clearNavigation() {
-        _uiState.update { it.copy(pendingNavigation = null) }
     }
 }
 
