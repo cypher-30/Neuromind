@@ -1,7 +1,62 @@
 # Neuromind — Progress Tracker
 
 **Current stable version in Gradle:** v7.0 (`versionCode = 5`, `versionName = "7.0"`)
-**Last updated:** 2026-09-25
+**Last updated:** 2026-11-20
+
+---
+
+## 2026-11-20 — Last day of classes, device checklist, fixes
+
+`compileDebugKotlin`, `testDebugUnitTest` and `assembleDebug` pass. Installed
+over the real data on the OnePlus CPH2159 (OxygenOS, Android 13) with
+`install -r -t`; a full `run-as` data backup was taken before every risky step.
+
+- [x] **Last day of classes** — Timetable card "Last day of classes": weekly
+      classes get `lastDate` (DB **v12 → v13**, `MIGRATION_12_13`, additive),
+      stop occurring after it (`TimetableEntry.occursOn`, so agenda, Home,
+      free-time finder and widgets all follow) and are deleted the next day by
+      `TaskRepository.purgeEndedClasses` (app start + midnight refresh). Dated
+      events are never touched. Backup format 3 carries the field. Set on the
+      phone to Wed 25 Nov (study break from Thu 26)
+- [x] **Splash flash fix** — with the app on Light and the phone on Dark (or
+      the reverse) the cold-launch window flashed the wrong colour for ~1.4 s.
+      MainActivity now registers the app's choice with
+      `UiModeManager.setApplicationNightMode` (Android 12+), applied only on
+      change (one activity restart when the setting changes, no loop)
+- [x] **Home header** — greeting/date seeded in the initial state so they no
+      longer pop in and push the cards down on launch
+- [x] **Backup** — `schemaVersion` was never written (Json skips defaults), so
+      the "newer backup" guard could not fire; now always encoded (+ test)
+- [x] **Event editor** — tapping the "All day" label toggles it (whole row is
+      one switch for TalkBack too)
+
+### Device checklist results (2026-11-20)
+- [x] DB migration v12→v13 on live data: 50 tasks / 24 timetable / 8 feedback
+      unchanged
+- [x] Light and Dark: Home, Tasks, Ask, Insights, Settings — status bar blends
+      in (no grey band), icons readable, nav capsule clear of the gesture bar
+- [x] Cold launch, Dark and Light (scrcpy recording): no white/lavender or
+      wrong-theme flash after the fix above
+- [x] Fonts: Caprasimo headings, Figtree body
+- [x] Onboarding gate: returning user goes straight to Home
+- [x] Route intents: reminder tap (`timetable` + entry id) opens the event;
+      `feedback` + prefill opens with the note filled, cold and warm
+- [x] Backup/restore round-trip: export → restore same file → every row in
+      all 4 tables identical; reminders still armed
+- [x] Drafts: restored banner + confirmed discard; end-before-start blocked
+- [x] Event reminder fired on time (set 13:55, posted 13:55:04) even though
+      `dumpsys alarm` shows an OxygenOS window on exact alarms
+- [x] Time-zone change (`cmd alarm set-timezone`): reminders re-armed at the
+      same local times, and back again
+- [x] Adaptive colors toggle on/off (no check-in today → base ground, as designed)
+- [x] Rotation (incidental): Settings survives landscape
+- [ ] Needs a person: widget re-add (Today, Daily Progress), deliberate
+      rotation on Home/Timetable, Alarms & reminders access revoked (OxygenOS
+      blocks `appops set` from adb), reboot re-arming (wireless adb drops on
+      reboot)
+- [ ] Midnight rollover / class purge: first real run at 00:01 Thu 26 Nov
+- Cosmetic, not fixed: in landscape the content cards stop ~50 px short of
+  the nav capsule on the right (cutout inset applied to one, not the other)
 
 ---
 
