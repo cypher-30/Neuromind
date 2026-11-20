@@ -3,7 +3,6 @@ package com.alvin.neuromind.ui.widget
 import android.content.Context
 import android.util.Log
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
@@ -12,7 +11,6 @@ import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
-import androidx.glance.color.ColorProvider
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
@@ -76,12 +74,7 @@ class TodayWidget : GlanceAppWidget() {
     }
 }
 
-private val WidgetBg = ColorProvider(Color(0xFFF5EAD8), Color(0xFF2E2B25))
-private val WidgetSurface = ColorProvider(Color(0xFFEBDDC5), Color(0xFF474238))
-private val WidgetText = ColorProvider(Color(0xFF201E1D), Color(0xFFF9F4ED))
-private val WidgetMuted = ColorProvider(Color(0x94201E1D), Color(0x94F9F4ED))
-private val WidgetAccent = ColorProvider(Color(0xFFC67139), Color(0xFFF6A06B))
-private val WidgetDivider = ColorProvider(Color(0x29201E1D), Color(0x1FFFFFFF))
+// Shared widget palette — see WidgetColors.kt.
 
 @Composable
 private fun WidgetContent(
