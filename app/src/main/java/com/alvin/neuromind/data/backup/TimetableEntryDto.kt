@@ -25,7 +25,9 @@ data class TimetableEntryDto(
     val details: String?,
     // Added in backup schema 2; defaults let schema-1 files restore unchanged.
     val isAllDay: Boolean = false,
-    val reminderMode: String? = null
+    val reminderMode: String? = null,
+    // Added with DB v13; older backups restore with no last day.
+    val lastDate: String? = null
 )
 
 fun TimetableEntry.toDto() = TimetableEntryDto(
@@ -39,7 +41,8 @@ fun TimetableEntry.toDto() = TimetableEntryDto(
     venue = venue,
     details = details,
     isAllDay = isAllDay,
-    reminderMode = reminderMode?.name
+    reminderMode = reminderMode?.name,
+    lastDate = lastDate?.toString()
 )
 
 fun TimetableEntryDto.toEntity() = TimetableEntry(
@@ -53,5 +56,6 @@ fun TimetableEntryDto.toEntity() = TimetableEntry(
     venue = venue,
     details = details,
     isAllDay = isAllDay,
-    reminderMode = reminderMode?.let { name -> EventReminder.entries.firstOrNull { it.name == name } }
+    reminderMode = reminderMode?.let { name -> EventReminder.entries.firstOrNull { it.name == name } },
+    lastDate = lastDate?.let { LocalDate.parse(it) }
 )

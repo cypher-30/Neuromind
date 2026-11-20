@@ -23,6 +23,7 @@ class EventReminderReceiver : BroadcastReceiver() {
                 when (intent.action) {
                     ACTION_FIRE -> fire(app, intent)
                     ACTION_MIDNIGHT -> {
+                        runCatching { app.repository.purgeEndedClasses() }
                         runCatching { WidgetRefreshCoordinator.updateAllWidgets(app) }
                         EventReminderScheduler(app).scheduleMidnightRefresh()
                     }

@@ -71,6 +71,23 @@ class TaskRepository(
 
     fun reminderScheduler(): EventReminderScheduler = reminderScheduler
 
+    /** Sets the last day of classes on every weekly class (null clears it). */
+    suspend fun setClassesLastDate(lastDate: LocalDate?) {
+        timetableDao.setClassesLastDate(lastDate)
+        refreshTodayWidget()
+    }
+
+    /**
+     * Deletes weekly classes whose last day has passed (study break / end of
+     * semester). Dated events are never touched. Returns how many were removed.
+     */
+    suspend fun purgeEndedClasses(today: LocalDate = LocalDate.now()): Int {
+        val ended = allTimetableEntries.first().filter { it.isRecurring && it.lastDate != null && it.lastDate.isBefore(today) }
+        ended.forEach { deleteTimetableEntry(it) }
+        if (ended.isNotEmpty()) Log.i("TaskRepository", "Removed ${ended.size} classes past their last day")
+        return ended.size
+    }
+
     suspend fun rescheduleAllReminders() {
         reminderScheduler.rescheduleAll(allTimetableEntries.first())
     }

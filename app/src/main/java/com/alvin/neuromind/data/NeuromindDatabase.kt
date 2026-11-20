@@ -124,7 +124,7 @@ abstract class NeuromindDatabase : RoomDatabase() {
     }
 
     companion object {
-        const val VERSION = 12
+        const val VERSION = 13
 
         @Volatile
         private var INSTANCE: NeuromindDatabase? = null
@@ -178,6 +178,14 @@ abstract class NeuromindDatabase : RoomDatabase() {
             }
         }
 
+        // Optional last day for weekly classes (v12 -> v13). Additive and
+        // nullable: existing classes keep running every week as before.
+        val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE timetable_entries ADD COLUMN lastDate TEXT")
+            }
+        }
+
         fun getDatabase(context: Context, scope: CoroutineScope): NeuromindDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -185,7 +193,7 @@ abstract class NeuromindDatabase : RoomDatabase() {
                     NeuromindDatabase::class.java,
                     "neuromind_database"
                 )
-                    .addMigrations(MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
+                    .addMigrations(MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
                     .addCallback(NeuromindDatabaseCallback(scope))
                     .build()
                 INSTANCE = instance

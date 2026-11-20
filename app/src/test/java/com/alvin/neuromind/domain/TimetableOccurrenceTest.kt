@@ -81,4 +81,21 @@ class TimetableOccurrenceTest {
         assertEquals(listOf(7), sections[2].entries.map { it.id })
         assertEquals(listOf(8), sections[3].entries.map { it.id })
     }
+
+    @Test
+    fun `weekly class stops occurring after its last day`() {
+        val endingClass = weekly.copy(lastDate = today.plusWeeks(1))
+        assertTrue(endingClass.occursOn(today))
+        assertTrue(endingClass.occursOn(today.plusWeeks(1)))  // the last day itself still runs
+        assertFalse(endingClass.occursOn(today.plusWeeks(2)))
+        assertFalse(endingClass.blocks(today.plusWeeks(2), LocalTime.of(10, 30), LocalTime.of(11, 0)))
+    }
+
+    @Test
+    fun `ended classes drop out of the agenda but events stay`() {
+        val ended = weekly.copy(lastDate = today.minusDays(1))
+        val exam = event(9, today.plusDays(2))
+        val sections = TimetableViewModel.buildSections(listOf(ended, exam), today)
+        assertEquals(listOf(9), sections.flatMap { it.entries }.map { it.id })
+    }
 }

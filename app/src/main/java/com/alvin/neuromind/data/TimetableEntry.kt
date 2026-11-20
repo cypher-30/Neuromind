@@ -26,11 +26,19 @@ data class TimetableEntry(
     val venue: String? = null,
     val details: String? = null,
     val isAllDay: Boolean = false, // added in DB v12
-    val reminderMode: EventReminder? = null // added in DB v12
+    val reminderMode: EventReminder? = null, // added in DB v12
+    // Weekly classes only: the last day they run (e.g. the end of teaching
+    // before a study break). After it they stop occurring, and the day after
+    // they're deleted by TaskRepository.purgeEndedClasses. Added in DB v13.
+    val lastDate: LocalDate? = null
 ) {
-    /** Weekly entries occur on their weekday; one-time entries only on their exact date. */
+    /**
+     * Weekly entries occur on their weekday up to [lastDate] (if set);
+     * one-time entries only on their exact date.
+     */
     fun occursOn(target: LocalDate): Boolean =
-        if (isRecurring) dayOfWeek == target.dayOfWeek else date == target
+        if (isRecurring) dayOfWeek == target.dayOfWeek && (lastDate == null || !target.isAfter(lastDate))
+        else date == target
 
     /** Whether this entry blocks [start, end) on [target] — all-day entries block the whole day. */
     fun blocks(target: LocalDate, start: LocalTime, end: LocalTime): Boolean =

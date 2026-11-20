@@ -21,6 +21,7 @@ data class BackupData(
 ) {
     companion object {
         // 2: timetable entries gained isAllDay + reminderMode (dated events).
-        const val CURRENT_SCHEMA_VERSION = 2
+        // 3: weekly classes gained lastDate (last day of classes).
+        const val CURRENT_SCHEMA_VERSION = 3
     }
 }

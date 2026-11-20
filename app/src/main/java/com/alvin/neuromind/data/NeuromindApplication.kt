@@ -47,6 +47,7 @@ class NeuromindApplication : Application(), Configuration.Provider {
             repository.refreshWidgetNow()
             // Reconcile event alarms (they don't survive force-stop / some OEM task killers)
             // and arm the post-midnight widget refresh for the daily-progress count.
+            runCatching { repository.purgeEndedClasses() }
             runCatching { repository.rescheduleAllReminders() }
             EventReminderScheduler(this@NeuromindApplication).scheduleMidnightRefresh()
 

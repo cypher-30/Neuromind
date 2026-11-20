@@ -14,6 +14,10 @@ interface TimetableDao {
     @Delete
     suspend fun deleteEntry(entry: TimetableEntry)
 
+    /** Sets (or clears, with null) the last day on every weekly class at once. */
+    @Query("UPDATE timetable_entries SET lastDate = :lastDate WHERE isRecurring = 1")
+    suspend fun setClassesLastDate(lastDate: java.time.LocalDate?)
+
     @Query("SELECT * FROM timetable_entries WHERE id = :id")
     suspend fun getEntryById(id: Int): TimetableEntry?
 

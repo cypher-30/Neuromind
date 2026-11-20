@@ -112,7 +112,10 @@ fun TimetableAgendaView(
             modifier = modifier,
             sections = sections,
             onEdit = { entry -> if (entry.isRecurring) viewModel.openEditEntry(entry) else onEditEvent(entry) },
-            onDelete = { pendingDeleteId = it.id }
+            onDelete = { pendingDeleteId = it.id },
+            header = if (uiState.hasClasses && searchQuery.isBlank()) {
+                { ClassesEndCard(uiState.classesLastDate, viewModel::setClassesLastDate) }
+            } else null
         )
     }
 }
@@ -151,7 +154,8 @@ fun AgendaList(
     modifier: Modifier,
     sections: List<AgendaSection>,
     onEdit: (TimetableEntry) -> Unit,
-    onDelete: (TimetableEntry) -> Unit
+    onDelete: (TimetableEntry) -> Unit,
+    header: (@Composable () -> Unit)? = null
 ) {
     val listState = rememberLazyListState()
     val nowTime = remember { LocalTime.now() }
@@ -159,7 +163,8 @@ fun AgendaList(
 
     val scrollTargetIndex = remember(todaySection) {
         val pastCount = todaySection?.entries?.count { !it.isAllDay && it.endTime.isBefore(nowTime) } ?: 0
-        if (pastCount > 0) 1 + pastCount else 0
+        val headerOffset = if (header != null) 1 else 0
+        if (pastCount > 0) 1 + pastCount + headerOffset else 0
     }
 
     LaunchedEffect(scrollTargetIndex) {
@@ -171,6 +176,7 @@ fun AgendaList(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = Dimens.ScreenPaddingBottomWithNav)
     ) {
+        if (header != null) item(key = "classes_end") { header() }
         sections.forEach { section ->
             item(key = "header_${section.title}") { DayHeader(section.title, section.date, section.isToday) }
             items(section.entries, key = { "${section.title}_${it.id}" }) { entry ->
@@ -179,6 +185,75 @@ fun AgendaList(
             item(key = "gap_${section.title}") { Spacer(modifier = Modifier.height(Dimens.SectionGap)) }
         }
     }
+}
+
+/**
+ * "Last day of classes": weekly classes stop showing after this date (study
+ * break / exams) and are deleted the day after it, at the midnight refresh
+ * or the next app start. Dated events, like exams, are never affected.
+ */
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+private fun ClassesEndCard(lastDate: LocalDate?, onSet: (LocalDate?) -> Unit) {
+    var showPicker by rememberSaveable { mutableStateOf(false) }
+    var confirmClear by rememberSaveable { mutableStateOf(false) }
+    val dateFormat = remember { DateTimeFormatter.ofPattern("EEE, MMM d") }
+
+    if (showPicker) {
+        // DatePicker speaks UTC-midnight millis; convert explicitly so the day never shifts.
+        val initial = (lastDate ?: LocalDate.now()).atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
+        val pickerState = rememberDatePickerState(
+            initialSelectedDateMillis = initial,
+            selectableDates = object : SelectableDates {
+                // The last day can be today or later; a past day would delete classes at once.
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean =
+                    !java.time.Instant.ofEpochMilli(utcTimeMillis).atZone(java.time.ZoneOffset.UTC).toLocalDate().isBefore(LocalDate.now())
+            }
+        )
+        DatePickerDialog(
+            onDismissRequest = { showPicker = false },
+            confirmButton = {
+                Button(onClick = {
+                    pickerState.selectedDateMillis?.let {
+                        onSet(java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneOffset.UTC).toLocalDate())
+                    }
+                    showPicker = false
+                }) { Text("Set last day") }
+            },
+            dismissButton = { TextButton(onClick = { showPicker = false }) { Text("Cancel") } }
+        ) { DatePicker(state = pickerState) }
+    }
+    if (confirmClear) {
+        OrganicConfirmDialog(
+            title = "Keep classes running?",
+            message = "Your weekly classes will show every week again and won't be deleted.",
+            confirmLabel = "Keep them",
+            onConfirm = { onSet(null); confirmClear = false },
+            onDismiss = { confirmClear = false }
+        )
+    }
+
+    OrganicCard(modifier = Modifier.fillMaxWidth().padding(bottom = Dimens.SectionGap)) { Column {
+        Text("Last day of classes", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            if (lastDate == null) "Not set. Set it before a study break so your weekly classes stop showing, then get cleared away."
+            else "Classes run until ${lastDate.format(dateFormat)}. They stop showing after that day and are deleted the next morning. Events and exams stay.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            PillButton(
+                text = if (lastDate == null) "Set last day" else "Change",
+                onClick = { showPicker = true },
+                ghost = true
+            )
+            if (lastDate != null) {
+                PillButton(text = "Clear", onClick = { confirmClear = true }, ghost = true)
+            }
+        }
+    } }
 }
 
 @Composable

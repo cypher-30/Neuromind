@@ -33,7 +33,12 @@ data class AgendaSection(
 
 data class TimetableUiState(
     val entries: List<TimetableEntry> = emptyList()
-)
+) {
+    val hasClasses: Boolean get() = entries.any { it.isRecurring }
+
+    /** The shared last day of classes, if one is set (latest wins if they differ). */
+    val classesLastDate: LocalDate? get() = entries.filter { it.isRecurring }.mapNotNull { it.lastDate }.maxOrNull()
+}
 
 /** Weekly-class editor (the dialog). One-off dated items use the Event editor instead. */
 data class TimetableEditorState(
@@ -142,6 +147,11 @@ class TimetableViewModel(private val repository: TaskRepository) : ViewModel() {
             if (entry.id == 0) repository.insertTimetableEntry(entry) else repository.updateTimetableEntry(entry)
             session?.close()
         }
+    }
+
+    /** Sets the last day on all weekly classes; null means they run every week again. */
+    fun setClassesLastDate(lastDate: LocalDate?) {
+        viewModelScope.launch { repository.setClassesLastDate(lastDate) }
     }
 
     fun deleteEntry(entry: TimetableEntry) {
