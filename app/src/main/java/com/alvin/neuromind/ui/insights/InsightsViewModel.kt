@@ -34,6 +34,7 @@ data class InsightsUiState(
     val retroInsights: RetroInsights? = null,
     val focusSummary: FocusSummary? = null,
     val subjectBreakdown: List<SubjectStat> = emptyList(),
+    val hasFeedbackData: Boolean = false,
     val isLoading: Boolean = true
 )
 
@@ -126,6 +127,7 @@ class InsightsViewModel(private val repository: TaskRepository) : ViewModel() {
             retroInsights = retroInsights,
             focusSummary = focusSummary,
             subjectBreakdown = subjectBreakdown,
+            hasFeedbackData = recentFeedback.isNotEmpty(),
             isLoading = false
         )
     }.stateIn(

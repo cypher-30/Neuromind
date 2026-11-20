@@ -16,7 +16,6 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.alvin.neuromind.domain.DailyProgress
 import com.alvin.neuromind.domain.DueOverview
-import kotlinx.coroutines.delay
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -25,6 +24,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.LabelImportant
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -39,7 +39,6 @@ import com.alvin.neuromind.ui.components.EmptyState
 import com.alvin.neuromind.ui.components.OrganicCard
 import com.alvin.neuromind.ui.components.PillButton
 import com.alvin.neuromind.ui.components.SectionKicker
-import com.alvin.neuromind.ui.components.StatTile
 import com.alvin.neuromind.ui.theme.Dimens
 import com.alvin.neuromind.ui.theme.Pill
 import com.alvin.neuromind.ui.theme.priorityColor
@@ -68,6 +67,7 @@ fun DashboardScreen(
 
     var selectedTask by remember { mutableStateOf<Task?>(null) }
     var showRebalanceDialog by remember { mutableStateOf(false) }
+    var planExpanded by rememberSaveable { mutableStateOf(false) }
 
     if (selectedTask != null) {
         TaskDetailsDialog(task = selectedTask!!, onDismiss = { selectedTask = null })
@@ -125,20 +125,10 @@ fun DashboardScreen(
             item { StreakPill(uiState.currentStreak) }
         }
 
-        // Pending / Done — today's due tasks only
-        item {
-            Row(horizontalArrangement = Arrangement.spacedBy(Dimens.CardGap)) {
-                StatTile(label = "Pending today", value = uiState.todayProgress.pending.toString(), modifier = Modifier.weight(1f))
-                StatTile(label = "Done today", value = uiState.todayProgress.completed.toString(), modifier = Modifier.weight(1f))
-            }
-        }
-
-        // Progress — rotates between today's due tasks and all due tasks
-        item {
-            ProgressCard(today = uiState.todayProgress, allDue = uiState.allDue)
-        }
-
-        // Happening now, then Up next — both above coaching and priorities
+        // Hero: the single most time-relevant thing right now — a class/event
+        // in progress, then what's coming up next. This is intentionally the
+        // first content after the greeting (One Job Dashboard: one clear next
+        // action before anything else competes for attention).
         uiState.happeningNow.forEach { entry ->
             item(key = "now_${entry.id}") {
                 HappeningNowCard(entry = entry, onClick = onNavigateToTimetable)
@@ -150,7 +140,9 @@ fun DashboardScreen(
             }
         }
 
-        // Coaching cards — strictly mutually exclusive, in priority order
+        // Coaching cards — strictly mutually exclusive, in priority order.
+        // Always a compact single card, never expanded inline detail, so it
+        // never outweighs the hero above it.
         uiState.burnoutState?.let { state ->
             item { BurnoutWarningCard(state = state) }
         }
@@ -172,6 +164,13 @@ fun DashboardScreen(
                     )
                 }
             }
+        }
+
+        // Progress — tap to flip between today's due tasks and all due tasks.
+        // No longer auto-rotates: a background timer silently changing card
+        // content read as distracting motion rather than useful information.
+        item {
+            ProgressCard(today = uiState.todayProgress, allDue = uiState.allDue)
         }
 
         // Today's Priorities
@@ -199,11 +198,34 @@ fun DashboardScreen(
             }
         }
 
-        // AI Suggested Plan
+        // AI Suggested Plan — collapsed by default. It's the most detailed,
+        // least time-urgent section on the screen, so it's a labeled
+        // disclosure rather than always-expanded content competing with the
+        // hero and priorities above it.
         if (uiState.todaysPlan.isNotEmpty()) {
-            item { Text("AI suggested plan", style = MaterialTheme.typography.titleLarge) }
-            items(uiState.todaysPlan.entries.toList().sortedBy { it.key.start }) { (slot, task) ->
-                AiPlanItem(slot, task)
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { planExpanded = !planExpanded }
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "AI suggested plan · ${uiState.todaysPlan.size}",
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Icon(
+                        if (planExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = if (planExpanded) "Collapse" else "Expand"
+                    )
+                }
+            }
+            if (planExpanded) {
+                items(uiState.todaysPlan.entries.toList().sortedBy { it.key.start }) { (slot, task) ->
+                    AiPlanItem(slot, task)
+                }
             }
         }
     }
@@ -235,8 +257,6 @@ private fun StreakPill(days: Int) {
 
 private data class ProgressFace(val title: String, val progress: DailyProgress, val subtitle: String)
 
-private const val PROGRESS_ROTATE_MS = 6_000L
-
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
 private fun ProgressCard(today: DailyProgress, allDue: DueOverview) {
@@ -261,11 +281,6 @@ private fun ProgressCard(today: DailyProgress, allDue: DueOverview) {
         )
     )
     var index by rememberSaveable { mutableIntStateOf(0) }
-    // Restarting on every index change means a tap also resets the timer.
-    LaunchedEffect(index) {
-        delay(PROGRESS_ROTATE_MS)
-        index = (index + 1) % faces.size
-    }
     val face = faces[index]
     val animatedFraction by animateFloatAsState(
         targetValue = face.progress.fraction,
@@ -508,7 +523,7 @@ fun RebalanceDialog(
                 proposals.forEach { proposal ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            Icons.Default.ArrowForward,
+                            Icons.AutoMirrored.Filled.ArrowForward,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp),
                             tint = MaterialTheme.colorScheme.primary

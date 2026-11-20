@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.EmojiEvents
@@ -15,7 +16,10 @@ import androidx.compose.material.icons.filled.TrackChanges
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -27,6 +31,7 @@ import com.alvin.neuromind.domain.RetroInsights
 import com.alvin.neuromind.ui.components.AnimatedBarChart
 import com.alvin.neuromind.ui.components.OrganicCard
 import com.alvin.neuromind.ui.components.SectionKicker
+import com.alvin.neuromind.ui.components.SegmentedToggle
 import com.alvin.neuromind.ui.components.StatTile
 import com.alvin.neuromind.ui.theme.Dimens
 import com.alvin.neuromind.ui.theme.Pill
@@ -35,9 +40,12 @@ import java.time.DayOfWeek
 import java.util.Date
 import java.util.Locale
 
+private val InsightsTabs = listOf("Overview", "Trends", "Journal")
+
 @Composable
 fun InsightsScreen(viewModel: InsightsViewModel) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var tab by rememberSaveable { mutableIntStateOf(0) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -51,15 +59,46 @@ fun InsightsScreen(viewModel: InsightsViewModel) {
     ) {
         item { Text("Insights", style = MaterialTheme.typography.headlineMedium) }
 
-        item { WellnessCard(score = (uiState.wellnessScore * 100).toInt()) }
+        // Insights Digest: grouped into Overview / Trends / Journal instead
+        // of one long wall of cards, so each visit only surfaces what's
+        // relevant to what the user is actually looking for.
+        item {
+            SegmentedToggle(
+                options = InsightsTabs,
+                selectedIndex = tab,
+                onSelect = { tab = it }
+            )
+        }
 
+        when (tab) {
+            0 -> overviewTab(uiState)
+            1 -> trendsTab(uiState)
+            else -> journalTab(uiState)
+        }
+    }
+}
+
+private fun LazyListScope.overviewTab(uiState: InsightsUiState) {
+    if (!uiState.hasFeedbackData) {
+        item {
+            OrganicCard(modifier = Modifier.fillMaxWidth()) {
+                SectionKicker("Wellness score", color = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Log your mood and energy in a daily check-in to see your wellness score here.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    } else {
+        item { WellnessCard(score = (uiState.wellnessScore * 100).toInt()) }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(Dimens.CardGap)) {
                 StatTile(label = "Avg Mood", value = uiState.averageMood, modifier = Modifier.weight(1f))
                 StatTile(label = "Avg Energy", value = "${uiState.averageEnergy}/5", modifier = Modifier.weight(1f))
             }
         }
-
         item {
             StatTile(
                 label = "Dominant Tone",
@@ -67,94 +106,110 @@ fun InsightsScreen(viewModel: InsightsViewModel) {
                 modifier = Modifier.fillMaxWidth()
             )
         }
+    }
 
+    item {
+        OrganicCard(modifier = Modifier.fillMaxWidth()) {
+            Text("Tasks completed this week", style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(16.dp))
+            AnimatedBarChart(
+                entries = uiState.completionData.map { (day, count) -> day to count.toFloat() },
+                valueLabel = { it.toInt().toString() },
+                emptyMessage = "No activity recorded yet."
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                "Grouped by when each task was created, not necessarily when it was finished.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+private fun LazyListScope.trendsTab(uiState: InsightsUiState) {
+    uiState.retroInsights?.let { retro ->
+        item { WeeklyTrendCard(weeklyTrend = retro.weeklyTrend) }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(Dimens.CardGap)) {
+                BestDayCard(retro = retro, modifier = Modifier.weight(1f))
+                OnTrackCard(rate = retro.onTrackRate, modifier = Modifier.weight(1f))
+            }
+        }
+        item { MoodProductivityCard(retro = retro) }
+    }
+
+    if (uiState.subjectBreakdown.isNotEmpty()) {
+        item { SubjectBreakdownCard(uiState.subjectBreakdown) }
+    }
+
+    uiState.focusSummary?.let { summary ->
+        item { DeepWorkCard(summary = summary) }
+    }
+
+    if (uiState.retroInsights == null && uiState.subjectBreakdown.isEmpty() && uiState.focusSummary == null) {
         item {
             OrganicCard(modifier = Modifier.fillMaxWidth()) {
-                Text("Tasks completed this week", style = MaterialTheme.typography.titleMedium)
-                Spacer(modifier = Modifier.height(16.dp))
-                AnimatedBarChart(
-                    entries = uiState.completionData.map { (day, count) -> day to count.toFloat() },
-                    valueLabel = { it.toInt().toString() },
-                    emptyMessage = "No activity recorded yet."
+                Text(
+                    "Keep logging tasks and check-ins to unlock trends.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
+    }
+}
 
-        uiState.retroInsights?.let { retro ->
-            item { WeeklyTrendCard(weeklyTrend = retro.weeklyTrend) }
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(Dimens.CardGap)) {
-                    BestDayCard(retro = retro, modifier = Modifier.weight(1f))
-                    OnTrackCard(rate = retro.onTrackRate, modifier = Modifier.weight(1f))
-                }
-            }
-            item { MoodProductivityCard(retro = retro) }
-        }
-
-        if (uiState.subjectBreakdown.isNotEmpty()) {
-            item { SubjectBreakdownCard(uiState.subjectBreakdown) }
-        }
-
-        uiState.focusSummary?.let { summary ->
-            item { DeepWorkCard(summary = summary) }
-        }
-
+private fun LazyListScope.journalTab(uiState: InsightsUiState) {
+    if (uiState.recentNotes.isEmpty()) {
         item {
-            Text(
-                "Recent Journal Entries",
-                style = MaterialTheme.typography.titleLarge
-            )
-        }
-        if (uiState.recentNotes.isEmpty()) {
-            item {
-                OrganicCard(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        "No journal entries yet. Add thoughts in your End-of-Day Review.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+            OrganicCard(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    "No journal entries yet. Add thoughts in your End-of-Day Review.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-        } else {
-            item {
-                OrganicCard(modifier = Modifier.fillMaxWidth()) {
-                    val dateFormat = remember { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()) }
-                    uiState.recentNotes.forEachIndexed { index, note ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Icon(
-                                Icons.Default.Notes,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(16.dp).padding(top = 2.dp)
-                            )
-                            Column {
-                                Text(note.comment ?: "", style = MaterialTheme.typography.bodyMedium)
-                                Spacer(modifier = Modifier.height(4.dp))
-                                val toneLabel = note.toneLabel
-                                    ?.name
-                                    ?.lowercase()
-                                    ?.replaceFirstChar { it.uppercase() }
-                                if (toneLabel != null) {
-                                    val score = note.sentimentScore?.let { " (${"%.2f".format(it)})" } ?: ""
-                                    Text(
-                                        "Tone: $toneLabel$score",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                }
+        }
+    } else {
+        item {
+            OrganicCard(modifier = Modifier.fillMaxWidth()) {
+                val dateFormat = remember { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()) }
+                uiState.recentNotes.forEachIndexed { index, note ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Icon(
+                            Icons.Default.Notes,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp).padding(top = 2.dp)
+                        )
+                        Column {
+                            Text(note.comment ?: "", style = MaterialTheme.typography.bodyMedium)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            val toneLabel = note.toneLabel
+                                ?.name
+                                ?.lowercase()
+                                ?.replaceFirstChar { it.uppercase() }
+                            if (toneLabel != null) {
+                                val score = note.sentimentScore?.let { " (${"%.2f".format(it)})" } ?: ""
                                 Text(
-                                    dateFormat.format(Date(note.date)),
+                                    "Tone: $toneLabel$score",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.primary
                                 )
+                                Spacer(modifier = Modifier.height(2.dp))
                             }
+                            Text(
+                                dateFormat.format(Date(note.date)),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
-                        if (index < uiState.recentNotes.lastIndex) {
-                            Spacer(Modifier.height(10.dp))
-                            HorizontalDivider()
-                            Spacer(Modifier.height(10.dp))
-                        }
+                    }
+                    if (index < uiState.recentNotes.lastIndex) {
+                        Spacer(Modifier.height(10.dp))
+                        HorizontalDivider()
+                        Spacer(Modifier.height(10.dp))
                     }
                 }
             }
@@ -168,10 +223,10 @@ private fun WeeklyTrendCard(weeklyTrend: List<com.alvin.neuromind.domain.WeekSta
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Your Streak", style = MaterialTheme.typography.titleMedium)
+            Text("Weekly Completion", style = MaterialTheme.typography.titleMedium)
         }
         Text(
-            "4-week completion %",
+            "% of tasks completed, last 4 weeks",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
