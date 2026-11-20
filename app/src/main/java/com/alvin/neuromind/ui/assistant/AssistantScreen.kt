@@ -53,7 +53,6 @@ fun AssistantScreen(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = Dimens.ScreenPaddingHorizontal, vertical = Dimens.ScreenPaddingTop)
-            .navigationBarsPadding()
             .imePadding()
     ) {
         Text("Ask Neuromind", style = MaterialTheme.typography.headlineMedium)

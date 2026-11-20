@@ -1,31 +1,47 @@
 package com.alvin.neuromind
 
 import android.net.Uri
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.automirrored.outlined.List
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -39,6 +55,8 @@ import com.alvin.neuromind.data.Task
 import com.alvin.neuromind.data.TaskRepository
 import com.alvin.neuromind.data.preferences.ThemeSetting
 import com.alvin.neuromind.data.preferences.UserPreferencesRepository
+import com.alvin.neuromind.domain.AdaptiveAppearance
+import com.alvin.neuromind.domain.AppearanceVariant
 import com.alvin.neuromind.domain.Scheduler
 import com.alvin.neuromind.navigation.Screen
 import com.alvin.neuromind.navigation.AppRouteRequest
@@ -70,13 +88,16 @@ import com.alvin.neuromind.ui.settings.SettingsViewModel
 import com.alvin.neuromind.ui.settings.SettingsViewModelFactory
 import com.alvin.neuromind.ui.tasks.*
 import com.alvin.neuromind.ui.theme.NeuromindTheme
+import com.alvin.neuromind.ui.theme.Dimens
+import com.alvin.neuromind.ui.theme.Pill
 import com.alvin.neuromind.ui.timetable.TimetableViewModelFactory
 import com.alvin.neuromind.ui.splash.SplashScreen
 
 data class NavItem(
     val screen: Screen,
     val label: String,
-    val icon: ImageVector
+    val icon: ImageVector,
+    val selectedIcon: ImageVector = icon
 )
 
 // Bottom-nav-visible top-level destinations. AddEditTask, FocusMode and
@@ -90,6 +111,7 @@ private val BOTTOM_NAV_ROUTES = setOf(
     Screen.Settings.route
 )
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun NeuromindApp(
     repository: TaskRepository,
@@ -111,7 +133,43 @@ fun NeuromindApp(
         else -> isSystemInDarkTheme()
     }
 
-    NeuromindTheme(darkTheme = useDarkTheme) {
+    // Adaptive Organic (opt-in, off by default): purely local, re-evaluated
+    // whenever the enabled flag or feedback logs change, and additionally
+    // forced to recompute on every app resume and at local midnight — both
+    // of which can flip AdaptiveAppearance.resolve()'s result without any
+    // feedback-log change (a stale calendar day rolling over, or the app
+    // being reopened after the day changed while backgrounded).
+    // See domain/AdaptiveAppearance.kt — never reads tone/sentiment/comment text.
+    val adaptiveEnabled by userPreferencesRepository.adaptiveAppearanceEnabled.collectAsStateWithLifecycle(initialValue = false)
+    val feedbackLogsForAppearance by (if (adaptiveEnabled) repository.allFeedbackLogs else kotlinx.coroutines.flow.flowOf(emptyList()))
+        .collectAsStateWithLifecycle(initialValue = emptyList())
+    var adaptiveToday by remember { mutableStateOf(java.time.LocalDate.now()) }
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                adaptiveToday = java.time.LocalDate.now()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    LaunchedEffect(Unit) {
+        while (true) {
+            val now = java.time.LocalDateTime.now()
+            val nextMidnight = now.toLocalDate().plusDays(1).atStartOfDay()
+            val millisUntilMidnight = java.time.Duration.between(now, nextMidnight).toMillis().coerceAtLeast(1000L)
+            kotlinx.coroutines.delay(millisUntilMidnight)
+            adaptiveToday = java.time.LocalDate.now()
+        }
+    }
+    val adaptiveVariant = if (adaptiveEnabled) {
+        AdaptiveAppearance.resolve(feedbackLogsForAppearance, today = adaptiveToday)
+    } else {
+        AppearanceVariant.BASE
+    }
+
+    NeuromindTheme(darkTheme = useDarkTheme, adaptiveVariant = adaptiveVariant) {
         var showSplash by rememberSaveable { mutableStateOf(showComposeSplash) }
         // Defaults to true (assume onboarded) so an existing user never sees a
         // one-frame onboarding flash while the DataStore value loads; the
@@ -134,7 +192,12 @@ fun NeuromindApp(
 
         val navController = rememberNavController()
         val navBackStackEntry by navController.currentBackStackEntryAsState()
-        val showBottomNav = navBackStackEntry?.destination?.route in BOTTOM_NAV_ROUTES
+        // Hidden while the keyboard is up: Scaffold reserves bottom space for
+        // this bar regardless of IME visibility, so leaving it "shown" (even
+        // though the keyboard now covers it) left a dead reserved gap between
+        // input fields and the keyboard on screens like Assistant/Feedback.
+        val imeVisible = WindowInsets.isImeVisible
+        val showBottomNav = navBackStackEntry?.destination?.route in BOTTOM_NAV_ROUTES && !imeVisible
 
         LaunchedEffect(pendingRouteRequest) {
             val request = pendingRouteRequest ?: return@LaunchedEffect
@@ -154,18 +217,27 @@ fun NeuromindApp(
         Scaffold(
             bottomBar = {
                 if (showBottomNav) {
-                    Column {
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        BottomNavBar(navController = navController)
-                    }
+                    BottomNavBar(navController = navController)
                 }
             }
         ) { innerPadding ->
+            // When the bottom nav capsule is showing, it already reserves and
+            // consumes the navigationBars inset itself (see BottomNavBar's own
+            // windowInsetsPadding), and innerPadding.bottom already reflects
+            // its full measured height. Applying safeDrawing here too would
+            // double-pad the bottom on every bottom-nav screen — most visible
+            // as an oversized gap above the keyboard on screens that also use
+            // imePadding() (e.g. Assistant).
+            val contentInsets = if (showBottomNav) {
+                WindowInsets.safeDrawing.exclude(WindowInsets.ime).exclude(WindowInsets.navigationBars)
+            } else {
+                WindowInsets.safeDrawing.exclude(WindowInsets.ime)
+            }
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .windowInsetsPadding(WindowInsets.safeDrawing.exclude(WindowInsets.ime))
+                    .windowInsetsPadding(contentInsets)
             ) {
                 NavHost(
                     navController = navController,
@@ -365,15 +437,31 @@ fun NeuromindApp(
 @Composable
 private fun BottomNavBar(navController: NavController) {
     val navItems = listOf(
-        NavItem(Screen.Dashboard, "Home", Icons.Outlined.Home),
-        NavItem(Screen.TaskList, "Tasks", Icons.AutoMirrored.Outlined.List),
-        NavItem(Screen.Assistant, "Ask", Icons.AutoMirrored.Outlined.Chat),
-        NavItem(Screen.Insights, "Insights", Icons.Outlined.BarChart),
-        NavItem(Screen.Settings, "Settings", Icons.Outlined.Settings)
+        NavItem(Screen.Dashboard, "Home", Icons.Outlined.Home, Icons.Filled.Home),
+        NavItem(Screen.TaskList, "Tasks", Icons.AutoMirrored.Outlined.List, Icons.AutoMirrored.Filled.List),
+        NavItem(Screen.Assistant, "Ask", Icons.AutoMirrored.Outlined.Chat, Icons.AutoMirrored.Filled.Chat),
+        NavItem(Screen.Insights, "Insights", Icons.Outlined.BarChart, Icons.Filled.BarChart),
+        NavItem(Screen.Settings, "Settings", Icons.Outlined.Settings, Icons.Filled.Settings)
     )
-    NavigationBar(containerColor = MaterialTheme.colorScheme.background) {
-        val navBackStackEntry by navController.currentBackStackEntryAsState()
-        val currentDestination = navBackStackEntry?.destination
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentDestination = navBackStackEntry?.destination
+
+    // Calm Nav: an opaque, inset Organic capsule instead of a stock edge-to-edge
+    // Material bar — matches the pill language used by PillButton/PillChip/
+    // SegmentedToggle elsewhere, with a solid selected-pill indicator instead
+    // of Material's default ripple-only selection cue.
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .windowInsetsPadding(WindowInsets.navigationBars)
+            .padding(horizontal = Dimens.ScreenPaddingHorizontal, vertical = 10.dp)
+            .clip(Pill)
+            .background(MaterialTheme.colorScheme.surface)
+            .selectableGroup()
+            .padding(6.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         navItems.forEach { item ->
             val routeToCheck = when (item.screen) {
                 Screen.TaskList -> Screen.TaskList.route + "/{isRescheduleMode}?openTimetable={openTimetable}"
@@ -382,40 +470,48 @@ private fun BottomNavBar(navController: NavController) {
             val isSelected = currentDestination?.hierarchy?.any { it.route == routeToCheck } == true
 
             val iconScale by animateFloatAsState(
-                targetValue = if (isSelected) 1.15f else 1f,
+                targetValue = if (isSelected) 1.1f else 1f,
                 animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
                 label = "nav_scale_${item.label}"
             )
-
-            NavigationBarItem(
-                selected = isSelected,
-                onClick = {
-                    val targetRoute = if (item.screen == Screen.TaskList) Screen.TaskList.withArgs(false) else item.screen.route
-                    navController.navigateToTab(targetRoute)
-                },
-                icon = {
-                    Icon(
-                        item.icon,
-                        contentDescription = item.label,
-                        modifier = Modifier.scale(iconScale)
-                    )
-                },
-                label = {
-                    Text(
-                        text     = item.label,
-                        maxLines = 1,
-                        softWrap = false,
-                        style    = MaterialTheme.typography.labelMedium
-                    )
-                },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = MaterialTheme.colorScheme.primary,
-                    selectedTextColor = MaterialTheme.colorScheme.primary,
-                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    indicatorColor = androidx.compose.ui.graphics.Color.Transparent
-                )
+            val indicatorColor by animateColorAsState(
+                targetValue = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                label = "nav_indicator_${item.label}"
             )
+            val contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+                                else MaterialTheme.colorScheme.onSurfaceVariant
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(Pill)
+                    .background(indicatorColor)
+                    .selectable(
+                        selected = isSelected,
+                        onClick = {
+                            val targetRoute = if (item.screen == Screen.TaskList) Screen.TaskList.withArgs(false) else item.screen.route
+                            navController.navigateToTab(targetRoute)
+                        },
+                        role = Role.Tab
+                    )
+                    .padding(vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(
+                    if (isSelected) item.selectedIcon else item.icon,
+                    contentDescription = null,
+                    tint = contentColor,
+                    modifier = Modifier.size(22.dp).scale(iconScale)
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = item.label,
+                    maxLines = 1,
+                    softWrap = false,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = contentColor
+                )
+            }
         }
     }
 }
