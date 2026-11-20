@@ -1,5 +1,12 @@
 # Neuromind — App Icon & Launch Animation Redesign Brief
 
+> **Historical status:** This brief predates the current "Organic" design system
+> (cream/sand ground, terracotta primary, sage secondary, Caprasimo/Figtree
+> typography). The "Teal & Sunset" palette, color tokens, and `FontFamily.Default`
+> typography described below no longer reflect the live app — see `ui/theme/Color.kt`,
+> `Type.kt`, and `Theme.kt` for the current source of truth. Kept for historical
+> reference only; do not use its palette/token tables for new work.
+
 Scope note: this brief covers the **app icon** and **launch/splash animation** only.
 It builds on top of the "Teal & Sunset" visual system already implemented across
 the rest of the app (currently on `main` as uncommitted work — see `HANDOFF.md`)
