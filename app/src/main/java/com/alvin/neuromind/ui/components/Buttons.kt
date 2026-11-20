@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -11,12 +12,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -25,6 +28,9 @@ import com.alvin.neuromind.ui.theme.Pill
 
 // The Organic system's circular icon affordance (back, search, theme toggle):
 // a 36-44dp surface-filled circle, never a bare IconButton ripple square.
+// minimumInteractiveComponentSize() expands the touch target to Material's
+// 48dp floor without changing the visible circle's size, so a 36dp CircleGap
+// affordance still meets Android's minimum-touch-target guidance.
 @Composable
 fun CircleIconButton(
     icon: ImageVector,
@@ -37,10 +43,11 @@ fun CircleIconButton(
 ) {
     Box(
         modifier = modifier
+            .minimumInteractiveComponentSize()
             .size(size)
             .clip(CircleShape)
             .background(background)
-            .clickable(onClick = onClick),
+            .clickable(onClickLabel = contentDescription, role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Icon(icon, contentDescription = contentDescription, tint = tint, modifier = Modifier.size(size * 0.5f))
@@ -49,7 +56,9 @@ fun CircleIconButton(
 
 // The Organic system's primary/ghost pill button (.btn-primary / .btn-ghost):
 // a solid-accent-fill CTA, or a text-only accent-colored variant for
-// secondary actions like "Clear date" / "See all".
+// secondary actions like "Clear date" / "See all". Both variants keep a
+// 48dp minimum touch height — the ghost variant used to collapse to ~30dp,
+// under Android's minimum interactive target guidance.
 @Composable
 fun PillButton(
     text: String,
@@ -63,10 +72,11 @@ fun PillButton(
     Box(
         modifier = modifier
             .let { if (!ghost) it.fillMaxWidth() else it }
+            .defaultMinSize(minHeight = 48.dp)
             .clip(Pill)
             .background(bg)
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(if (ghost) PaddingValues(horizontal = 4.dp, vertical = 8.dp) else PaddingValues(vertical = 16.dp)),
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .padding(if (ghost) PaddingValues(horizontal = 12.dp, vertical = 12.dp) else PaddingValues(vertical = 16.dp)),
         contentAlignment = Alignment.Center
     ) {
         Text(

@@ -1,12 +1,14 @@
 package com.alvin.neuromind.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -23,6 +25,8 @@ import com.alvin.neuromind.ui.theme.Pill
 // surface fill otherwise. Used for task filters, priority/difficulty/category
 // pickers, mood, peak-window, session-length and planning-style options —
 // one component instead of each screen inventing its own chip row.
+// Modifier.selectable (role = Tab) reports selected state to accessibility
+// services instead of announcing every chip as an unlabeled plain button.
 @Composable
 fun PillChip(
     label: String,
@@ -34,9 +38,10 @@ fun PillChip(
 ) {
     Box(
         modifier = modifier
+            .defaultMinSize(minHeight = 40.dp)
             .clip(Pill)
             .background(if (selected) selectedColor else MaterialTheme.colorScheme.surface)
-            .clickable(onClick = onClick)
+            .selectable(selected = selected, onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 9.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -62,6 +67,7 @@ fun SegmentedToggle(
             .fillMaxWidth()
             .clip(Pill)
             .background(MaterialTheme.colorScheme.surface)
+            .selectableGroup()
             .padding(4.dp)
     ) {
         options.forEachIndexed { index, label ->
@@ -69,9 +75,10 @@ fun SegmentedToggle(
             Box(
                 modifier = Modifier
                     .weight(1f)
+                    .defaultMinSize(minHeight = 40.dp)
                     .clip(Pill)
                     .background(if (selected) MaterialTheme.colorScheme.primary else Color.Transparent)
-                    .clickable { onSelect(index) }
+                    .selectable(selected = selected, onClick = { onSelect(index) })
                     .padding(vertical = 9.dp),
                 contentAlignment = Alignment.Center
             ) {
