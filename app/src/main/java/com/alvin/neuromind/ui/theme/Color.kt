@@ -97,27 +97,17 @@ val CategorySocial   = AccentBase
 val CategoryFitness  = Accent2Base
 val CategoryPersonal = Accent2Base
 
-// ── Legacy aliases so any lingering references compile (deprecated) ─────────
-// TODO(redesign): remove once Splash/Dashboard/Timetable are rewritten (Phase 4/5).
-@Deprecated("Use AccentBase", ReplaceWith("AccentBase"))
-val DeepCalmingBlue = AccentBase
-@Deprecated("Use Accent2Base", ReplaceWith("Accent2Base"))
-val WarmOrange = Accent2Base
-@Deprecated("Use DangerLight", ReplaceWith("DangerLight"))
-val CriticalRed = DangerLight
-@Deprecated("Splash restyled without a gradient bloom (Phase 4)")
-val GradientStart = AccentBase
-@Deprecated("Splash restyled without a gradient bloom (Phase 4)")
-val GradientEnd = Accent700
-@Deprecated("Timetable folds into Tasks with plain accent/accent2 category colors (Phase 4)")
-val CategorySocialLight = AccentBase
-@Deprecated("Timetable folds into Tasks with plain accent/accent2 category colors (Phase 4)")
-val CategorySocialDark = Accent400
-@Deprecated("Timetable folds into Tasks with plain accent/accent2 category colors (Phase 4)")
-val CategorySocialContainerLight = Accent100
-@Deprecated("Timetable folds into Tasks with plain accent/accent2 category colors (Phase 4)")
-val CategorySocialContainerDark = Accent900
-@Deprecated("Timetable folds into Tasks with plain accent/accent2 category colors (Phase 4)")
-val OnCategorySocialContainerLight = Accent800
-@Deprecated("Timetable folds into Tasks with plain accent/accent2 category colors (Phase 4)")
-val OnCategorySocialContainerDark = Accent100
+// ── Adaptive Organic (opt-in, off by default) ────────────────────────────────
+// Subtle re-tint of ground/container roles only, driven by the user's most
+// recent explicit mood/energy check-in (never inferred tone/sentiment text).
+// Semantic roles (priority, error, category) are NEVER touched by this — see
+// ui/theme/PriorityColors.kt and Theme.kt's adaptive variant application.
+val AdaptiveSubduedBackgroundLight = Color(0xFFEFEAE0) // cooler, muted sand-cream
+val AdaptiveSubduedSurfaceLight    = Color(0xFFE3DCCB)
+val AdaptiveSubduedBackgroundDark  = Color(0xFF2A2C2B)
+val AdaptiveSubduedSurfaceDark     = Color(0xFF3F423E)
+
+val AdaptiveWarmBackgroundLight = Color(0xFFFAEEDA) // brighter, warmer cream-sand
+val AdaptiveWarmSurfaceLight    = Color(0xFFF1DFC0)
+val AdaptiveWarmBackgroundDark  = Color(0xFF332B22)
+val AdaptiveWarmSurfaceDark     = Color(0xFF4D4032)

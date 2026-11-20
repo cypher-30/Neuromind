@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import com.alvin.neuromind.domain.AppearanceVariant
 
 // Organic design system: dark mode is a token re-point (bg -> neutral-900,
 // surface -> neutral-800, accent -> accent-400, accent-2 -> accent-2-400),
@@ -96,12 +97,41 @@ private val LightColorScheme = lightColorScheme(
     inversePrimary          = Accent400,
 )
 
+// Adaptive Organic (opt-in, off by default): re-points ONLY background/surface
+// ground roles per AppearanceVariant. Every other role (primary, secondary,
+// error, priority, category, text) stays identical to the base scheme, so
+// meaning-bearing color is never affected by the day's mood/energy check-in.
+private fun applyAdaptiveGround(base: androidx.compose.material3.ColorScheme, darkTheme: Boolean, variant: AppearanceVariant): androidx.compose.material3.ColorScheme {
+    if (variant == AppearanceVariant.BASE) return base
+    val (bg, surf) = when (variant) {
+        AppearanceVariant.SUBDUED -> if (darkTheme) AdaptiveSubduedBackgroundDark to AdaptiveSubduedSurfaceDark
+                                     else AdaptiveSubduedBackgroundLight to AdaptiveSubduedSurfaceLight
+        AppearanceVariant.WARM -> if (darkTheme) AdaptiveWarmBackgroundDark to AdaptiveWarmSurfaceDark
+                                  else AdaptiveWarmBackgroundLight to AdaptiveWarmSurfaceLight
+        AppearanceVariant.BASE -> return base
+    }
+    return base.copy(
+        background = bg,
+        surface = surf,
+        surfaceContainerLow = bg,
+        surfaceContainer = bg,
+        surfaceContainerHigh = surf,
+        surfaceBright = if (darkTheme) surf else base.surfaceBright,
+        surfaceDim = if (darkTheme) bg else base.surfaceDim
+    )
+}
+
 @Composable
 fun NeuromindTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    adaptiveVariant: AppearanceVariant = AppearanceVariant.BASE,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    val colorScheme = applyAdaptiveGround(
+        base = if (darkTheme) DarkColorScheme else LightColorScheme,
+        darkTheme = darkTheme,
+        variant = adaptiveVariant
+    )
 
     val view = LocalView.current
     if (!view.isInEditMode) {

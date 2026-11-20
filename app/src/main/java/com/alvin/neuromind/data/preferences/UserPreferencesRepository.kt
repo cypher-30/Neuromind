@@ -53,6 +53,7 @@ class UserPreferencesRepository(context: Context) {
         val ONBOARDED = booleanPreferencesKey("onboarded")
         val NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
         val WIDGET_STACK_INTERVAL = intPreferencesKey("widget_stack_interval")
+        val ADAPTIVE_APPEARANCE_ENABLED = booleanPreferencesKey("adaptive_appearance_enabled")
     }
 
     val userTheme: Flow<ThemeSetting> = dataStore.data
@@ -92,6 +93,11 @@ class UserPreferencesRepository(context: Context) {
 
     val widgetStackIntervalMinutes: Flow<Int> = dataStore.data
         .map { preferences -> preferences[PreferenceKeys.WIDGET_STACK_INTERVAL] ?: 30 }
+
+    // Off by default — see ui/theme/AdaptiveAppearance.kt for the local,
+    // explicit-check-in-only resolution logic this gate unlocks.
+    val adaptiveAppearanceEnabled: Flow<Boolean> = dataStore.data
+        .map { preferences -> preferences[PreferenceKeys.ADAPTIVE_APPEARANCE_ENABLED] ?: false }
 
     suspend fun saveThemeSetting(theme: ThemeSetting) {
         dataStore.edit { preferences ->
@@ -149,6 +155,12 @@ class UserPreferencesRepository(context: Context) {
         }
         dataStore.edit { preferences ->
             preferences[PreferenceKeys.WIDGET_STACK_INTERVAL] = safe
+        }
+    }
+
+    suspend fun setAdaptiveAppearanceEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[PreferenceKeys.ADAPTIVE_APPEARANCE_ENABLED] = enabled
         }
     }
 }

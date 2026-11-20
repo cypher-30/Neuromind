@@ -54,6 +54,7 @@ fun SettingsScreen(
     val currentTaskStyle by viewModel.taskStyle.collectAsStateWithLifecycle()
     val notificationsEnabled by viewModel.notificationsEnabled.collectAsStateWithLifecycle()
     val currentWidgetStackInterval by viewModel.widgetStackIntervalMinutes.collectAsStateWithLifecycle()
+    val adaptiveAppearanceEnabled by viewModel.adaptiveAppearanceEnabled.collectAsStateWithLifecycle()
 
     val appInfo by viewModel.appInfo.collectAsStateWithLifecycle()
     val backupMessage by viewModel.backupMessage.collectAsStateWithLifecycle()
@@ -343,6 +344,23 @@ fun SettingsScreen(
                 ) {
                     Text("Notifications", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
                     OrganicToggle(checked = notificationsEnabled, onCheckedChange = { viewModel.toggleNotifications() })
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Column(modifier = Modifier.padding(vertical = 14.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Adaptive colors", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                        OrganicToggle(checked = adaptiveAppearanceEnabled, onCheckedChange = { viewModel.toggleAdaptiveAppearance() })
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "Gently mutes or warms the app's background based on today's mood/energy check-in only — never your journal text. Stays local, resets each day, off by default.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
             Spacer(Modifier.height(Dimens.CardGap))

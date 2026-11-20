@@ -49,6 +49,9 @@ class SettingsViewModel(
     val widgetStackIntervalMinutes: StateFlow<Int> = userPrefs.widgetStackIntervalMinutes
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 30)
 
+    val adaptiveAppearanceEnabled: StateFlow<Boolean> = userPrefs.adaptiveAppearanceEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     val notificationsEnabled: StateFlow<Boolean> = userPrefs.notificationsEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
@@ -101,6 +104,10 @@ class SettingsViewModel(
     fun updateWidgetStackInterval(minutes: Int) = viewModelScope.launch {
         userPrefs.saveWidgetStackIntervalMinutes(minutes)
         repository.refreshWidgetNow()
+    }
+
+    fun toggleAdaptiveAppearance() = viewModelScope.launch {
+        userPrefs.setAdaptiveAppearanceEnabled(!adaptiveAppearanceEnabled.value)
     }
 
     fun resetAppData() = viewModelScope.launch {
