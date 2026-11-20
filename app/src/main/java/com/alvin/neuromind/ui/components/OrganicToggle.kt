@@ -12,7 +12,8 @@ import androidx.compose.ui.Modifier
 @Composable
 fun OrganicToggle(
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
+    // null when a parent row handles the toggle (Modifier.toggleable).
+    onCheckedChange: ((Boolean) -> Unit)?,
     modifier: Modifier = Modifier
 ) {
     Switch(

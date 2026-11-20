@@ -1,5 +1,7 @@
 package com.alvin.neuromind.ui.events
 
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.selection.toggleable
 import com.alvin.neuromind.ui.components.OrganicConfirmDialog
 import android.content.Intent
 import android.net.Uri
@@ -207,9 +209,20 @@ fun EventEditorScreen(
         }
 
         item {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            // The whole row is the switch, so tapping the label works and
+            // TalkBack reads it as one "All day" switch.
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .toggleable(
+                        value = uiState.isAllDay,
+                        role = Role.Switch,
+                        onValueChange = viewModel::onAllDayChange
+                    )
+            ) {
                 Text("All day", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-                OrganicToggle(checked = uiState.isAllDay, onCheckedChange = viewModel::onAllDayChange)
+                OrganicToggle(checked = uiState.isAllDay, onCheckedChange = null)
             }
             if (!uiState.isAllDay) {
                 Spacer(Modifier.height(8.dp))
