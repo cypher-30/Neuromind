@@ -110,4 +110,10 @@ class BackupDataTest {
         assertNull(entry.reminderMode)
         assertEquals(LocalDate.of(2026, 8, 1), entry.date)
     }
+
+    @Test
+    fun `export always writes the schema version`() {
+        val json = Json.encodeToString(BackupData(exportedAt = 1, tasks = emptyList(), timetable = emptyList(), feedback = emptyList(), focusSessions = emptyList()))
+        assertTrue(json, json.contains("\"schemaVersion\":${BackupData.CURRENT_SCHEMA_VERSION}"))
+    }
 }
