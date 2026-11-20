@@ -453,7 +453,9 @@ private fun BottomNavBar(navController: NavController) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .windowInsetsPadding(WindowInsets.navigationBars)
+            // Same side insets as the content above (camera cutout in
+            // landscape), so the capsule lines up with the cards.
+            .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.displayCutout))
             .padding(horizontal = Dimens.ScreenPaddingHorizontal, vertical = 10.dp)
             .clip(Pill)
             .background(MaterialTheme.colorScheme.surface)
