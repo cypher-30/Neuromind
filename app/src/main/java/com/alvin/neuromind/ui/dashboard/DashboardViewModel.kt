@@ -137,7 +137,12 @@ class DashboardViewModel(
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
-        initialValue = DashboardUiState()
+        // Seed the header so it doesn't collapse and then pop in (pushing the
+        // cards down) when the first database emission arrives.
+        initialValue = DashboardUiState(
+            greeting = getGreeting(),
+            currentDate = LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMM d"))
+        )
     )
 
     fun confirmRebalance() {
