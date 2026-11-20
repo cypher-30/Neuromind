@@ -85,7 +85,13 @@ class EventEditorViewModel(private val repository: TaskRepository) : ViewModel()
 
     fun onTitleChange(value: String) = edit { it.copy(title = value) }
     fun onDateChange(value: LocalDate) = edit { it.copy(date = value) }
-    fun onAllDayChange(value: Boolean) = edit { it.copy(isAllDay = value) }
+    fun onAllDayChange(value: Boolean) = edit { state ->
+        // An all-day event saved as 00:00-23:59; turning all-day off should
+        // offer a normal 9-10 AM slot rather than that whole-day span.
+        val wholeDay = state.startTime == LocalTime.MIDNIGHT && state.endTime == LocalTime.of(23, 59)
+        if (!value && wholeDay) state.copy(isAllDay = false, startTime = LocalTime.of(9, 0), endTime = LocalTime.of(10, 0))
+        else state.copy(isAllDay = value)
+    }
     fun onStartTimeChange(value: LocalTime) = edit { state ->
         // Keep the event's length when the start moves, like calendar apps do.
         val length = Duration.between(state.startTime, state.endTime)
