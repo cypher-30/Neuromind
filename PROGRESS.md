@@ -22,7 +22,14 @@
       under Special app access); re-allowing clears it, alarms stay armed
 - [x] Landscape: nav capsule now takes the cutout inset, lines up with cards
 - [x] Event editor: turning All day off restores 9–10 AM (was 12:00–11:59)
-- [ ] Device check of the new widgets (need adding from the widget picker)
+- [x] Device check of the widgets in light + dark (Today's Progress, Activity
+      resized to 16 weeks, Next Up, Exam Countdown). Picker shows real preview
+      images; widgets resize between compact / medium / wide layouts
+- [x] Light widgets use a neutral palette; empty widgets show an icon + hint
+- [x] Loading, before-first-draw and error states: dark "Neuromind is getting
+      ready" card (overrides Glance's spinner and "Can't show content")
+- [x] **Reboot re-arming passed** (2026-11-22, 9 min after a real reboot): all
+      10 event reminders + midnight refresh were back in `dumpsys alarm`
 
 ## 2026-11-20 — Last day of classes, device checklist, fixes
 
