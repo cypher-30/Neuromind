@@ -139,7 +139,35 @@ private suspend fun GlanceAppWidget.safely(name: String, block: suspend () -> Un
         block()
     } catch (t: Throwable) {
         Log.e("NeuromindWidget", "$name widget failed", t)
-        provideContent { WidgetCard(null, openApp()) { Text("Tap to open Neuromind", style = body()) } }
+        provideContent { GettingReady() }
+    }
+}
+
+/**
+ * Fallback when a widget can't draw its data: always dark, matching the XML
+ * "getting ready" card used before first draw and while loading
+ * (res/layout/widget_getting_ready.xml, glance_default_loading_layout.xml).
+ */
+@Composable
+private fun GettingReady() {
+    Row(
+        modifier = GlanceModifier
+            .fillMaxSize()
+            .cornerRadius(20.dp)
+            .background(androidx.compose.ui.graphics.Color(0xFF2E2B25))
+            .padding(12.dp)
+            .clickable(openApp()),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Image(ImageProvider(R.drawable.ic_neuromind_logo), contentDescription = null, modifier = GlanceModifier.size(28.dp))
+        Spacer(GlanceModifier.width(10.dp))
+        Column {
+            Text("Neuromind is getting ready", maxLines = 1,
+                style = TextStyle(color = ColorProvider(androidx.compose.ui.graphics.Color(0xFFF9F4ED)), fontSize = 14.sp, fontWeight = FontWeight.Bold))
+            Text("Tap to open", maxLines = 1,
+                style = TextStyle(color = ColorProvider(androidx.compose.ui.graphics.Color(0x94F9F4ED)), fontSize = 12.sp))
+        }
     }
 }
 

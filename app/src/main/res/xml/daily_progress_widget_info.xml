@@ -14,4 +14,4 @@
     android:widgetCategory="home_screen"
     android:description="@string/widget_progress_description"
     android:previewImage="@drawable/widget_preview_progress"
-    android:initialLayout="@layout/today_widget_initial" />
+    android:initialLayout="@layout/widget_getting_ready" />

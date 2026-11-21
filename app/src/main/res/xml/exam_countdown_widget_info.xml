@@ -14,4 +14,4 @@
     android:widgetCategory="home_screen"
     android:description="@string/widget_exam_countdown_description"
     android:previewImage="@drawable/widget_preview_exams"
-    android:initialLayout="@layout/today_widget_initial" />
+    android:initialLayout="@layout/widget_getting_ready" />
