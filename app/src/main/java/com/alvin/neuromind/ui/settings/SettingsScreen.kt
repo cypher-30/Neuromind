@@ -53,13 +53,11 @@ fun SettingsScreen(
     val currentSessionLength by viewModel.preferredSessionLength.collectAsStateWithLifecycle()
     val currentTaskStyle by viewModel.taskStyle.collectAsStateWithLifecycle()
     val notificationsEnabled by viewModel.notificationsEnabled.collectAsStateWithLifecycle()
-    val currentWidgetStackInterval by viewModel.widgetStackIntervalMinutes.collectAsStateWithLifecycle()
     val adaptiveAppearanceEnabled by viewModel.adaptiveAppearanceEnabled.collectAsStateWithLifecycle()
 
     val appInfo by viewModel.appInfo.collectAsStateWithLifecycle()
     val backupMessage by viewModel.backupMessage.collectAsStateWithLifecycle()
 
-    var showWidgetStackDialog by remember { mutableStateOf(false) }
     var showMiniQuickLogHelpDialog by remember { mutableStateOf(false) }
     var showQuickTileHelpDialog by remember { mutableStateOf(false) }
     var showPrivacyPolicyDialog by remember { mutableStateOf(false) }
@@ -89,39 +87,6 @@ fun SettingsScreen(
         ActivityResultContracts.OpenDocument()
     ) { uri -> uri?.let { viewModel.importBackup(context, it) } }
 
-    if (showWidgetStackDialog) {
-        AlertDialog(
-            onDismissRequest = { showWidgetStackDialog = false },
-            title = { Text("Widget Stack Interval") },
-            text = {
-                Column {
-                    listOf(15, 30, 60).forEach { mins ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    viewModel.updateWidgetStackInterval(mins)
-                                    showWidgetStackDialog = false
-                                }
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = currentWidgetStackInterval == mins,
-                                onClick = {
-                                    viewModel.updateWidgetStackInterval(mins)
-                                    showWidgetStackDialog = false
-                                }
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Every $mins minutes")
-                        }
-                    }
-                }
-            },
-            confirmButton = { TextButton(onClick = { showWidgetStackDialog = false }) { Text("Cancel") } }
-        )
-    }
 
     if (showMiniQuickLogHelpDialog) {
         AlertDialog(
@@ -443,13 +408,6 @@ fun SettingsScreen(
                 title = "Add Quick Voice Log Tile",
                 subtitle = "One-swipe access from Android Quick Settings",
                 onClick = { showQuickTileHelpDialog = true }
-            )
-            Spacer(Modifier.height(10.dp))
-            SettingsRow(
-                title = "Widget Stack Interval",
-                subtitle = "Auto Stack rotates every $currentWidgetStackInterval min",
-                onClick = { showWidgetStackDialog = true },
-                showArrow = false
             )
             Spacer(Modifier.height(Dimens.CardGap))
         }

@@ -68,12 +68,9 @@ class NeuromindApplication : Application(), Configuration.Provider {
                 }
             }
 
-            // Keep widget auto-rotation active even when app data is unchanged.
-            launch {
-                userPreferencesRepository.widgetStackIntervalMinutes.collectLatest { minutes ->
-                    scheduleWidgetRefreshWorker(minutes)
-                }
-            }
+            // Refresh widgets every 30 min even when data is unchanged, so
+            // Next up / Exam Countdown roll forward as time passes.
+            scheduleWidgetRefreshWorker()
         }
     }
 
@@ -94,12 +91,8 @@ class NeuromindApplication : Application(), Configuration.Provider {
         )
     }
 
-    private fun scheduleWidgetRefreshWorker(intervalMinutes: Int) {
-        val safe = when (intervalMinutes) {
-            15, 30, 60 -> intervalMinutes
-            else -> 30
-        }
-        val request = PeriodicWorkRequestBuilder<WidgetRefreshWorker>(safe.toLong(), TimeUnit.MINUTES)
+    private fun scheduleWidgetRefreshWorker() {
+        val request = PeriodicWorkRequestBuilder<WidgetRefreshWorker>(30, TimeUnit.MINUTES)
             .build()
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             WidgetRefreshWorker.WORK_NAME,

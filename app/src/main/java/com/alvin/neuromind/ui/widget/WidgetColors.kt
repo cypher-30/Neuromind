@@ -15,3 +15,9 @@ internal val WidgetText = ColorProvider(Color(0xFF201E1D), Color(0xFFF9F4ED))
 internal val WidgetMuted = ColorProvider(Color(0x94201E1D), Color(0x94F9F4ED))
 internal val WidgetAccent = ColorProvider(Color(0xFFC67139), Color(0xFFF6A06B))
 internal val WidgetDivider = ColorProvider(Color(0x29201E1D), Color(0x1FFFFFFF))
+
+// Activity Heat steps (none → 4+ tasks finished that day), terracotta ramp.
+internal val Heat0 = ColorProvider(Color(0x1F201E1D), Color(0x1FFFFFFF))
+internal val Heat1 = ColorProvider(Color(0x66C67139), Color(0x66F6A06B))
+internal val Heat2 = ColorProvider(Color(0xB3C67139), Color(0xB3F6A06B))
+internal val Heat3 = ColorProvider(Color(0xFFC67139), Color(0xFFF6A06B))

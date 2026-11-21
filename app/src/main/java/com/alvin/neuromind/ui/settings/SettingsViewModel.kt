@@ -46,9 +46,6 @@ class SettingsViewModel(
     val taskStyle: StateFlow<TaskStyle> = userPrefs.taskStyle
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TaskStyle.BALANCED)
 
-    val widgetStackIntervalMinutes: StateFlow<Int> = userPrefs.widgetStackIntervalMinutes
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 30)
-
     val adaptiveAppearanceEnabled: StateFlow<Boolean> = userPrefs.adaptiveAppearanceEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
@@ -99,11 +96,6 @@ class SettingsViewModel(
 
     fun updateTaskStyle(style: TaskStyle) = viewModelScope.launch {
         userPrefs.saveTaskStyle(style)
-    }
-
-    fun updateWidgetStackInterval(minutes: Int) = viewModelScope.launch {
-        userPrefs.saveWidgetStackIntervalMinutes(minutes)
-        repository.refreshWidgetNow()
     }
 
     fun toggleAdaptiveAppearance() = viewModelScope.launch {

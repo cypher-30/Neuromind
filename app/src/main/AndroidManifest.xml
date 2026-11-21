@@ -67,29 +67,7 @@
                 android:resource="@xml/today_widget_info" />
         </receiver>
 
-        <receiver
-            android:name=".ui.widget.QuickActionsWidgetReceiver"
-            android:label="@string/widget_quick_actions_label"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/quick_actions_widget_info" />
-        </receiver>
 
-        <receiver
-            android:name=".ui.widget.FocusShortcutsWidgetReceiver"
-            android:label="@string/widget_focus_label"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/focus_shortcuts_widget_info" />
-        </receiver>
 
         <receiver
             android:name=".ui.widget.NextClassWidgetReceiver"
@@ -115,29 +93,7 @@
                 android:resource="@xml/daily_progress_widget_info" />
         </receiver>
 
-        <receiver
-            android:name=".ui.widget.StreakWellbeingWidgetReceiver"
-            android:label="@string/widget_streak_label"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/streak_wellbeing_widget_info" />
-        </receiver>
 
-        <receiver
-            android:name=".ui.widget.SmartSuggestionWidgetReceiver"
-            android:label="@string/widget_suggestion_label"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/smart_suggestion_widget_info" />
-        </receiver>
 
         <receiver
             android:name=".ui.widget.HeatmapWidgetReceiver"
@@ -152,28 +108,18 @@
         </receiver>
 
         <receiver
-            android:name=".ui.widget.AcademicWidgetReceiver"
-            android:label="@string/widget_academic_label"
+            android:name=".ui.widget.ExamCountdownWidgetReceiver"
+            android:label="@string/widget_exam_countdown_label"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
-                android:resource="@xml/academic_widget_info" />
+                android:resource="@xml/exam_countdown_widget_info" />
         </receiver>
 
-        <receiver
-            android:name=".ui.widget.MotivatorWidgetReceiver"
-            android:label="@string/widget_motivator_label"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/motivator_widget_info" />
-        </receiver>
+
 
         <receiver
             android:name=".ui.widget.MiniQuickLogWidgetReceiver"
@@ -187,77 +133,11 @@
                 android:resource="@xml/mini_quick_log_widget_info" />
         </receiver>
 
-        <receiver
-            android:name=".ui.widget.MiniStatusWidgetReceiver"
-            android:label="@string/widget_mini_status_label"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/mini_status_widget_info" />
-        </receiver>
 
-        <receiver
-            android:name=".ui.widget.MiniNextWidgetReceiver"
-            android:label="@string/widget_mini_next_label"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/mini_next_widget_info" />
-        </receiver>
 
-        <receiver
-            android:name=".ui.widget.ConfigurableStackWidgetReceiver"
-            android:label="@string/widget_stack_auto_label"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/stack_auto_widget_info" />
-        </receiver>
 
-        <receiver
-            android:name=".ui.widget.RotatingStack15WidgetReceiver"
-            android:label="@string/widget_stack_15_label"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/stack_15_widget_info" />
-        </receiver>
 
-        <receiver
-            android:name=".ui.widget.RotatingStack30WidgetReceiver"
-            android:label="@string/widget_stack_30_label"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/stack_30_widget_info" />
-        </receiver>
 
-        <receiver
-            android:name=".ui.widget.RotatingStack60WidgetReceiver"
-            android:label="@string/widget_stack_60_label"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/stack_60_widget_info" />
-        </receiver>
 
         <service
             android:name=".ui.tile.QuickLogTileService"

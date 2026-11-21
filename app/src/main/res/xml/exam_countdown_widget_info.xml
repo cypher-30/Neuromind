@@ -7,7 +7,7 @@
     android:updatePeriodMillis="1800000"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
-    android:description="@string/widget_focus_description"
+    android:description="@string/widget_exam_countdown_description"
     android:previewLayout="@layout/widget_preview_2x2"
     android:initialLayout="@layout/today_widget_initial" />
 

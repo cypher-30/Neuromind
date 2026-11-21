@@ -52,7 +52,6 @@ class UserPreferencesRepository(context: Context) {
         val TASK_STYLE = stringPreferencesKey("task_style")
         val ONBOARDED = booleanPreferencesKey("onboarded")
         val NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
-        val WIDGET_STACK_INTERVAL = intPreferencesKey("widget_stack_interval")
         val ADAPTIVE_APPEARANCE_ENABLED = booleanPreferencesKey("adaptive_appearance_enabled")
     }
 
@@ -90,9 +89,6 @@ class UserPreferencesRepository(context: Context) {
 
     val notificationsEnabled: Flow<Boolean> = dataStore.data
         .map { preferences -> preferences[PreferenceKeys.NOTIFICATIONS_ENABLED] ?: true }
-
-    val widgetStackIntervalMinutes: Flow<Int> = dataStore.data
-        .map { preferences -> preferences[PreferenceKeys.WIDGET_STACK_INTERVAL] ?: 30 }
 
     // Off by default — see ui/theme/AdaptiveAppearance.kt for the local,
     // explicit-check-in-only resolution logic this gate unlocks.
@@ -145,16 +141,6 @@ class UserPreferencesRepository(context: Context) {
         dataStore.edit { preferences ->
             preferences[PreferenceKeys.PEAK_START_HOUR] = window.startHour
             preferences[PreferenceKeys.PEAK_END_HOUR] = window.endHour
-        }
-    }
-
-    suspend fun saveWidgetStackIntervalMinutes(minutes: Int) {
-        val safe = when (minutes) {
-            15, 30, 60 -> minutes
-            else -> 30
-        }
-        dataStore.edit { preferences ->
-            preferences[PreferenceKeys.WIDGET_STACK_INTERVAL] = safe
         }
     }
 

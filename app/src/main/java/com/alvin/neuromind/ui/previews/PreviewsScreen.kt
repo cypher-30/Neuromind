@@ -61,18 +61,14 @@ fun PreviewsScreen(onBack: () -> Unit) {
 @Composable
 private fun WidgetCatalogHelp() {
     OrganicCard(modifier = Modifier.fillMaxWidth()) {
-        Text("Auto Stack setup", style = MaterialTheme.typography.titleSmall)
-        Spacer(Modifier.height(6.dp))
-        Text("1) Add 'Auto Stack (Configurable)' from the widget picker.", style = MaterialTheme.typography.bodySmall)
-        Text("2) In Settings, set 'Widget Stack Interval' to 15/30/60 min.", style = MaterialTheme.typography.bodySmall)
-        Text("3) The same widget rotates cards automatically.", style = MaterialTheme.typography.bodySmall)
-        Spacer(Modifier.height(10.dp))
-        Text("Available sizes", style = MaterialTheme.typography.titleSmall)
+        Text("Neuromind widgets", style = MaterialTheme.typography.titleSmall)
         Spacer(Modifier.height(4.dp))
-        Text("- Mini Status (1x1)", style = MaterialTheme.typography.bodySmall)
-        Text("- Mini Next (2x1)", style = MaterialTheme.typography.bodySmall)
-        Text("- Mini Quick Log (1x1)", style = MaterialTheme.typography.bodySmall)
-        Text("- Standard widgets (about 2x2 and up)", style = MaterialTheme.typography.bodySmall)
+        Text("- Today Priorities: top tasks and your next class", style = MaterialTheme.typography.bodySmall)
+        Text("- Next Up: next class or event, time and venue", style = MaterialTheme.typography.bodySmall)
+        Text("- Daily Progress: tasks due today, with a bar", style = MaterialTheme.typography.bodySmall)
+        Text("- Activity Heat: tasks finished per day, last 4 weeks", style = MaterialTheme.typography.bodySmall)
+        Text("- Exam Countdown: days to your next exam", style = MaterialTheme.typography.bodySmall)
+        Text("- Mini Quick Log (1x1): one-tap voice logging", style = MaterialTheme.typography.bodySmall)
 
         Spacer(Modifier.height(10.dp))
         Text("Mini Quick Log setup", style = MaterialTheme.typography.titleSmall)
