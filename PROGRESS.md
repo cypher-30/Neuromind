@@ -1,9 +1,28 @@
 # Neuromind — Progress Tracker
 
 **Current stable version in Gradle:** v7.0 (`versionCode = 5`, `versionName = "7.0"`)
-**Last updated:** 2026-11-20
+**Last updated:** 2026-11-22
 
 ---
+
+## 2026-11-22 — Widgets cut to six, completion times
+
+- [x] **Task.completedAt** (DB **v13 → v14**, `MIGRATION_13_14`): stamped when a
+      task is ticked off, cleared when reopened (central in `TaskRepository`).
+      "All due tasks" now credits an overdue task finished today (the old
+      "completed overdue tasks vanish" bug). Backup format 4
+- [x] **Widgets 17 → 6**: Today, Next Up (class or event, tap opens it),
+      Daily Progress (bar), Activity Heat (4-week grid of tasks finished per
+      day), Exam Countdown (new), Mini Quick Log. Removed: 4 rotating stacks
+      (could not really rotate every 15 min), Quick Actions and Focus
+      Shortcuts (listed buttons that did nothing), Streak, Smart Suggestion,
+      Academic, Motivator, Mini Status, Mini Next, and the stack-interval setting
+- [x] Exact-alarm access revoked → event editor shows "Reminders may be late"
+      + "Allow exact reminders" (opens the OxygenOS page, which isn't listed
+      under Special app access); re-allowing clears it, alarms stay armed
+- [x] Landscape: nav capsule now takes the cutout inset, lines up with cards
+- [x] Event editor: turning All day off restores 9–10 AM (was 12:00–11:59)
+- [ ] Device check of the new widgets (need adding from the widget picker)
 
 ## 2026-11-20 — Last day of classes, device checklist, fixes
 
