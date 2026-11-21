@@ -73,7 +73,7 @@ private fun entryAccentColor(category: EntryCategory): androidx.compose.ui.graph
 fun TimetableAgendaView(
     viewModel: TimetableViewModel,
     searchQuery: String,
-    onEditEvent: (TimetableEntry) -> Unit,
+    onOpenEntry: (TimetableEntry) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -111,7 +111,7 @@ fun TimetableAgendaView(
         AgendaList(
             modifier = modifier,
             sections = sections,
-            onEdit = { entry -> if (entry.isRecurring) viewModel.openEditEntry(entry) else onEditEvent(entry) },
+            onEdit = onOpenEntry,
             onDelete = { pendingDeleteId = it.id },
             header = if (uiState.hasClasses && searchQuery.isBlank()) {
                 { ClassesEndCard(uiState.classesLastDate, viewModel::setClassesLastDate) }

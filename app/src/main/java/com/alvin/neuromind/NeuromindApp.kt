@@ -67,7 +67,14 @@ import com.alvin.neuromind.ui.components.SegmentedToggle
 import com.alvin.neuromind.ui.dashboard.DashboardScreen
 import com.alvin.neuromind.ui.dashboard.DashboardViewModel
 import com.alvin.neuromind.ui.dashboard.DashboardViewModelFactory
+import com.alvin.neuromind.ui.details.DetailsViewModelFactory
+import com.alvin.neuromind.ui.details.EntryDetailsScreen
+import com.alvin.neuromind.ui.details.EntryDetailsViewModel
+import com.alvin.neuromind.ui.details.TaskDetailsScreen
+import com.alvin.neuromind.ui.details.TaskDetailsViewModel
 import com.alvin.neuromind.ui.events.EventEditorScreen
+import com.alvin.neuromind.ui.timetable.TimetableEntryEditorDialog
+import com.alvin.neuromind.ui.timetable.TimetableViewModel
 import com.alvin.neuromind.ui.events.EventEditorViewModel
 import com.alvin.neuromind.ui.events.EventEditorViewModelFactory
 import com.alvin.neuromind.ui.feedback.FeedbackScreen
@@ -204,7 +211,7 @@ fun NeuromindApp(
             if (request.route == Screen.Timetable.route) {
                 // Event reminder tap: open the Timetable, then the event itself.
                 navController.navigateToTab("${Screen.TaskList.route}/false?openTimetable=true")
-                request.entryId?.let { navController.navigate("${Screen.AddEditTask.route}?eventId=$it") }
+                request.entryId?.let { navController.navigate("${Screen.EntryDetails.route}/$it") }
             } else if (request.route == Screen.Feedback.route) {
                 val encodedPrefill = Uri.encode(request.prefillNote ?: "")
                 navController.navigate(
@@ -256,7 +263,7 @@ fun NeuromindApp(
                             onNavigateToTimetable = { navController.navigate(Screen.Timetable.route) },
                             onNavigateToAssistant = { navController.navigate(Screen.Assistant.route) },
                             onNavigateToTask = { taskId ->
-                                navController.navigate(Screen.AddEditTask.route + "?taskId=$taskId")
+                                navController.navigate("${Screen.TaskDetails.route}/$taskId")
                             },
                             isDarkTheme = useDarkTheme,
                             onToggleTheme = {
@@ -286,11 +293,11 @@ fun NeuromindApp(
                             initialTimetableView = openTimetable,
                             onAddTaskClicked = { navController.navigate(Screen.AddEditTask.route) },
                             onAddEventClicked = { navController.navigate(Screen.AddEditTask.route + "?kind=event") },
-                            onEditTaskClicked = { task ->
-                                navController.navigate(Screen.AddEditTask.route + "?taskId=${task.id}")
+                            onTaskClicked = { task ->
+                                navController.navigate("${Screen.TaskDetails.route}/${task.id}")
                             },
-                            onEditEventClicked = { entry ->
-                                navController.navigate(Screen.AddEditTask.route + "?eventId=${entry.id}")
+                            onEntryClicked = { entry ->
+                                navController.navigate("${Screen.EntryDetails.route}/${entry.id}")
                             },
                             onFocusTaskClicked = { task ->
                                 navController.navigate(Screen.FocusMode.route + "/${task.id}")
@@ -354,6 +361,37 @@ fun NeuromindApp(
                                 topContent = selector
                             )
                         }
+                    }
+
+                    composable(
+                        route = Screen.TaskDetails.route + "/{taskId}",
+                        arguments = listOf(navArgument("taskId") { type = NavType.IntType })
+                    ) { backStackEntry ->
+                        val taskId = backStackEntry.arguments?.getInt("taskId") ?: -1
+                        val vm = viewModel<TaskDetailsViewModel>(factory = DetailsViewModelFactory(repository, taskId))
+                        TaskDetailsScreen(
+                            viewModel = vm,
+                            onNavigateUp = { navController.navigateUp() },
+                            onEdit = { navController.navigate(Screen.AddEditTask.route + "?taskId=${it.id}") },
+                            onFocus = { navController.navigate(Screen.FocusMode.route + "/${it.id}") }
+                        )
+                    }
+
+                    composable(
+                        route = Screen.EntryDetails.route + "/{entryId}",
+                        arguments = listOf(navArgument("entryId") { type = NavType.IntType })
+                    ) { backStackEntry ->
+                        val entryId = backStackEntry.arguments?.getInt("entryId") ?: -1
+                        val vm = viewModel<EntryDetailsViewModel>(factory = DetailsViewModelFactory(repository, entryId))
+                        // Weekly classes edit in the Timetable's class dialog, shown over this screen.
+                        val classEditor = viewModel<TimetableViewModel>(factory = timetableViewModelFactory)
+                        TimetableEntryEditorDialog(viewModel = classEditor)
+                        EntryDetailsScreen(
+                            viewModel = vm,
+                            onNavigateUp = { navController.navigateUp() },
+                            onEditEvent = { navController.navigate(Screen.AddEditTask.route + "?eventId=${it.id}") },
+                            onEditClass = { classEditor.openEditEntry(it) }
+                        )
                     }
 
                     composable(

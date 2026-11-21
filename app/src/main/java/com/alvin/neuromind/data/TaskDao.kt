@@ -20,6 +20,10 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE id = :id")
     suspend fun getTaskById(id: Int): Task?
 
+    /** Live view of one task (null once it's deleted), for the details screen. */
+    @Query("SELECT * FROM tasks WHERE id = :id")
+    fun observeTask(id: Int): kotlinx.coroutines.flow.Flow<Task?>
+
     @Query(
         """
         SELECT * FROM tasks

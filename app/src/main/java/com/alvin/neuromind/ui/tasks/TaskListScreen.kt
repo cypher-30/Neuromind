@@ -75,8 +75,8 @@ fun TaskListScreen(
     initialTimetableView: Boolean = false,
     onAddTaskClicked: () -> Unit,
     onAddEventClicked: () -> Unit,
-    onEditTaskClicked: (Task) -> Unit,
-    onEditEventClicked: (TimetableEntry) -> Unit,
+    onTaskClicked: (Task) -> Unit,
+    onEntryClicked: (TimetableEntry) -> Unit,
     onFocusTaskClicked: (Task) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -174,7 +174,7 @@ fun TaskListScreen(
                 TasksSubView.TIMETABLE -> TimetableAgendaView(
                     viewModel = timetableViewModel,
                     searchQuery = uiState.searchQuery,
-                    onEditEvent = onEditEventClicked,
+                    onOpenEntry = onEntryClicked,
                     modifier = Modifier.weight(1f)
                 )
                 TasksSubView.LIST -> Column(modifier = Modifier.weight(1f)) {
@@ -207,7 +207,7 @@ fun TaskListScreen(
                                 tasks = contentState.tasks,
                                 allTasksForBlocking = contentState.allTasksForBlocking,
                                 viewModel = viewModel,
-                                onEditTaskClicked = onEditTaskClicked,
+                                onTaskClicked = onTaskClicked,
                                 onFocusTaskClicked = onFocusTaskClicked,
                                 onRequestDelete = { taskPendingDeleteId = it.id }
                             )
@@ -248,7 +248,7 @@ private fun TaskItemList(
     tasks: List<Task>,
     allTasksForBlocking: List<Task>,
     viewModel: TaskViewModel,
-    onEditTaskClicked: (Task) -> Unit,
+    onTaskClicked: (Task) -> Unit,
     onFocusTaskClicked: (Task) -> Unit,
     onRequestDelete: (Task) -> Unit
 ) {
@@ -313,7 +313,7 @@ private fun TaskItemList(
             ) {
                 TaskCard(
                     task = task,
-                    onClick = { onEditTaskClicked(task) },
+                    onClick = { onTaskClicked(task) },
                     onComplete = { isChecked ->
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         viewModel.onTaskCheckedChange(task, isChecked)

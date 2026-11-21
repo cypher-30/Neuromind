@@ -130,11 +130,11 @@ private fun WidgetCard(heading: String?, onClick: Action, content: @Composable (
 
 private fun openApp(): Action = actionStartActivity<MainActivity>()
 
-/** Opens the Timetable, with the event's editor on top when it's a dated event. */
+/** Opens the Timetable with the class or event's details on top. */
 private fun openEntry(context: Context, occurrence: Occurrence?): Action {
     val entry = occurrence?.entry ?: return openApp()
     return androidx.glance.appwidget.action.actionStartActivity(
-        AppRouteIntents.openEvent(context, if (entry.isRecurring) 0 else entry.id)
+        AppRouteIntents.openEvent(context, entry.id)
     )
 }
 

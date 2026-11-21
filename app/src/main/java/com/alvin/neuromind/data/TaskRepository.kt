@@ -30,6 +30,7 @@ class TaskRepository(
 
     val allTasks: Flow<List<Task>> = taskDao.getAllTasks()
     suspend fun getTaskById(id: Int): Task? = taskDao.getTaskById(id)
+    fun observeTask(id: Int): Flow<Task?> = taskDao.observeTask(id)
     suspend fun insertTask(task: Task) {
         taskDao.insertTask(withCompletionTime(task))
         refreshTodayWidget()
@@ -53,6 +54,7 @@ class TaskRepository(
 
     val allTimetableEntries: Flow<List<TimetableEntry>> = timetableDao.getAllEntries()
     suspend fun getTimetableEntryById(id: Int): TimetableEntry? = timetableDao.getEntryById(id)
+    fun observeTimetableEntry(id: Int): Flow<TimetableEntry?> = timetableDao.observeEntry(id)
 
     /** Returns the saved entry (with its generated id) and how its reminder was scheduled. */
     suspend fun insertTimetableEntry(entry: TimetableEntry): Pair<TimetableEntry, EventReminderScheduler.Status> {

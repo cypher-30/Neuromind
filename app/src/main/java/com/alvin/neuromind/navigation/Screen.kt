@@ -17,6 +17,9 @@ sealed class Screen(val route: String) {
     data object Feedback : Screen("feedback")
     data object Assistant : Screen("assistant")
     data object Previews : Screen("previews")
+    // Read-only details; editing is a button on these screens.
+    data object TaskDetails : Screen("task_details")
+    data object EntryDetails : Screen("entry_details")
 
     // Helper to pass arguments safely
     fun withArgs(vararg args: Any): String {

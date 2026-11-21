@@ -21,6 +21,10 @@ interface TimetableDao {
     @Query("SELECT * FROM timetable_entries WHERE id = :id")
     suspend fun getEntryById(id: Int): TimetableEntry?
 
+    /** Live view of one class/event (null once it's deleted), for the details screen. */
+    @Query("SELECT * FROM timetable_entries WHERE id = :id")
+    fun observeEntry(id: Int): Flow<TimetableEntry?>
+
     @Query("SELECT * FROM timetable_entries ORDER BY dayOfWeek, startTime")
     fun getAllEntries(): Flow<List<TimetableEntry>>
 
