@@ -34,6 +34,7 @@ import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.layout.size
 import androidx.glance.layout.width
+import androidx.glance.text.FontFamily
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
@@ -82,6 +83,10 @@ private fun shape(): Shape {
     }
 }
 
+// OxygenOS's widget host ignores FontWeight.Bold/Medium (tested 2026-11-22:
+// only a heavier font family renders heavier), so bold text asks for it by name.
+private val Heavy = FontFamily("sans-serif-black")
+
 private val timeFmt: DateTimeFormatter = DateTimeFormatter.ofPattern("h:mm a", Locale.getDefault())
 private val dayFmt: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE d MMM", Locale.getDefault())
 
@@ -96,9 +101,9 @@ private fun dueLabel(task: Task, today: LocalDate): String {
     return "${dayLabel(due.toLocalDate(), today)} ${due.toLocalTime().format(timeFmt)}"
 }
 
-private fun title(size: Int = 11) = TextStyle(color = WidgetAccent, fontWeight = FontWeight.Bold, fontSize = size.sp)
+private fun title(size: Int = 11) = TextStyle(color = WidgetAccent, fontWeight = FontWeight.Bold, fontFamily = Heavy, fontSize = size.sp)
 private fun body(size: Int = 14, bold: Boolean = false) =
-    TextStyle(color = WidgetText, fontSize = size.sp, fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal)
+    TextStyle(color = WidgetText, fontSize = size.sp, fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal, fontFamily = if (bold) Heavy else null)
 private fun muted(size: Int = 12) = TextStyle(color = WidgetMuted, fontSize = size.sp)
 
 /** Shell shared by every widget: rounded card, small accent heading, tap action. */
@@ -164,7 +169,7 @@ private fun GettingReady() {
         Spacer(GlanceModifier.width(10.dp))
         Column {
             Text("Neuromind is getting ready", maxLines = 1,
-                style = TextStyle(color = ColorProvider(androidx.compose.ui.graphics.Color(0xFFF9F4ED)), fontSize = 14.sp, fontWeight = FontWeight.Bold))
+                style = TextStyle(color = ColorProvider(androidx.compose.ui.graphics.Color(0xFFF9F4ED)), fontSize = 14.sp, fontWeight = FontWeight.Bold, fontFamily = Heavy))
             Text("Tap to open", maxLines = 1,
                 style = TextStyle(color = ColorProvider(androidx.compose.ui.graphics.Color(0x94F9F4ED)), fontSize = 12.sp))
         }
@@ -458,7 +463,7 @@ class ExamCountdownWidget : GlanceAppWidget() {
                         Column(GlanceModifier.width(76.dp).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
                                 if (first.daysLeft == 0L) "Today" else "${first.daysLeft}",
-                                style = TextStyle(color = WidgetAccent, fontWeight = FontWeight.Bold, fontSize = if (first.daysLeft == 0L) 22.sp else 40.sp)
+                                style = TextStyle(color = WidgetAccent, fontWeight = FontWeight.Bold, fontFamily = Heavy, fontSize = if (first.daysLeft == 0L) 22.sp else 40.sp)
                             )
                             if (first.daysLeft > 0) Text(if (first.daysLeft == 1L) "day" else "days", style = muted())
                         }
