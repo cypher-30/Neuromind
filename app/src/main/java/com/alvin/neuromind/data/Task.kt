@@ -23,7 +23,10 @@ data class Task(
     val createdAt: Long = System.currentTimeMillis(),
     val durationMinutes: Int = 60,
     val subject: String? = null, // added in DB v10 — free-text, drives Insights' by-subject breakdown
-    val category: TaskCategory = TaskCategory.ACADEMIC // added in DB v10
+    val category: TaskCategory = TaskCategory.ACADEMIC, // added in DB v10
+    // When the task was ticked off (null while open, and for tasks finished
+    // before DB v14). Set/cleared by TaskRepository.updateTask/insertTask.
+    val completedAt: Long? = null
 ) {
     val isOverdue: Boolean
         get() = !isCompleted && dueDate != null && dueDate < System.currentTimeMillis()

@@ -87,4 +87,23 @@ class DailyProgressTest {
 
         assertEquals(DueOverview(DailyProgress(0, 0), 0, 0), overview)
     }
+
+    @Test
+    fun `overdue task finished today counts as done, older history does not`() {
+        val startOfToday = today.atStartOfDay(zone).toInstant().toEpochMilli()
+        val tasks = listOf(
+            // Overdue, ticked off this morning: credited.
+            Task(id = 1, title = "Late essay", dueDate = due(today.minusDays(3)), isCompleted = true, completedAt = startOfToday + 3_600_000),
+            // Overdue, finished last week: history, not counted.
+            Task(id = 2, title = "Old lab", dueDate = due(today.minusDays(9)), isCompleted = true, completedAt = startOfToday - 5 * 86_400_000L),
+            // Finished before completedAt existed: history.
+            Task(id = 3, title = "Legacy", dueDate = due(today.minusDays(2)), isCompleted = true),
+            // Still open and overdue.
+            Task(id = 4, title = "Open", dueDate = due(today.minusDays(1)))
+        )
+        val overview = DailyProgressCalculator.allDue(tasks, today, zone)
+        assertEquals(2, overview.progress.total)
+        assertEquals(1, overview.progress.completed)
+        assertEquals(1, overview.overdue)
+    }
 }

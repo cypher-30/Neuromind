@@ -31,11 +31,18 @@ class TaskRepository(
     val allTasks: Flow<List<Task>> = taskDao.getAllTasks()
     suspend fun getTaskById(id: Int): Task? = taskDao.getTaskById(id)
     suspend fun insertTask(task: Task) {
-        taskDao.insertTask(task)
+        taskDao.insertTask(withCompletionTime(task))
         refreshTodayWidget()
     }
+
+    /** Stamps completedAt when a task becomes done and clears it when reopened. */
+    private fun withCompletionTime(task: Task): Task = when {
+        task.isCompleted && task.completedAt == null -> task.copy(completedAt = System.currentTimeMillis())
+        !task.isCompleted && task.completedAt != null -> task.copy(completedAt = null)
+        else -> task
+    }
     suspend fun updateTask(task: Task) {
-        taskDao.updateTask(task)
+        taskDao.updateTask(withCompletionTime(task))
         refreshTodayWidget()
     }
     suspend fun deleteTask(task: Task) {

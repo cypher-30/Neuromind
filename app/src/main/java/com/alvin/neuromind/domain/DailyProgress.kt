@@ -33,7 +33,12 @@ object DailyProgressCalculator {
         val start = date.atStartOfDay(zone).toInstant().toEpochMilli()
         val dated = tasks.filter { it.dueDate != null }
         val open = dated.filter { !it.isCompleted }
-        val doneAhead = dated.count { it.isCompleted && it.dueDate!! >= start }
+        // Done counts tasks finished ahead of their due date, plus any
+        // finished today (so ticking off an overdue task credits it instead
+        // of dropping it from the total).
+        val doneAhead = dated.count {
+            it.isCompleted && (it.dueDate!! >= start || (it.completedAt != null && it.completedAt >= start))
+        }
         return DueOverview(
             progress = DailyProgress(total = open.size + doneAhead, completed = doneAhead),
             overdue = open.count { it.dueDate!! < start },

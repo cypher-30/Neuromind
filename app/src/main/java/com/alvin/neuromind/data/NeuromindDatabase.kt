@@ -124,7 +124,7 @@ abstract class NeuromindDatabase : RoomDatabase() {
     }
 
     companion object {
-        const val VERSION = 13
+        const val VERSION = 14
 
         @Volatile
         private var INSTANCE: NeuromindDatabase? = null
@@ -186,6 +186,14 @@ abstract class NeuromindDatabase : RoomDatabase() {
             }
         }
 
+        // When a task was completed (v13 -> v14). Nullable: tasks finished
+        // earlier have no timestamp and are treated as history.
+        val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE tasks ADD COLUMN completedAt INTEGER")
+            }
+        }
+
         fun getDatabase(context: Context, scope: CoroutineScope): NeuromindDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -193,7 +201,7 @@ abstract class NeuromindDatabase : RoomDatabase() {
                     NeuromindDatabase::class.java,
                     "neuromind_database"
                 )
-                    .addMigrations(MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
+                    .addMigrations(MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14)
                     .addCallback(NeuromindDatabaseCallback(scope))
                     .build()
                 INSTANCE = instance
