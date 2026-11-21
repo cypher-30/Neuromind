@@ -19,19 +19,28 @@ data class UpcomingExam(val entry: TimetableEntry, val date: LocalDate, val name
 /** Pure helpers behind the home-screen widgets (kept out of Glance code so they can be tested). */
 object WidgetInsights {
 
-    /** The next class or timed event that hasn't started yet, looking up to [lookaheadDays] ahead. */
-    fun nextUp(entries: List<TimetableEntry>, now: LocalDateTime, lookaheadDays: Int = 7): Occurrence? {
-        for (offset in 0..lookaheadDays) {
-            val date = now.toLocalDate().plusDays(offset.toLong())
-            val next = entries
-                .filter { it.occursOn(date) && !it.isAllDay }
-                .map { Occurrence(it, date) }
-                .filter { it.start.isAfter(now) }
-                .minByOrNull { it.start }
-            if (next != null) return next
-        }
-        return null
-    }
+    /** The next [count] classes or timed events that haven't started yet, up to [lookaheadDays] ahead. */
+    fun upcoming(entries: List<TimetableEntry>, now: LocalDateTime, count: Int, lookaheadDays: Int = 7): List<Occurrence> =
+        (0..lookaheadDays).asSequence()
+            .map { now.toLocalDate().plusDays(it.toLong()) }
+            .flatMap { date ->
+                entries.filter { it.occursOn(date) && !it.isAllDay }
+                    .map { Occurrence(it, date) }
+                    .sortedBy { it.start }
+            }
+            .filter { it.start.isAfter(now) }
+            .take(count)
+            .toList()
+
+    /** The next class or timed event that hasn't started yet. */
+    fun nextUp(entries: List<TimetableEntry>, now: LocalDateTime, lookaheadDays: Int = 7): Occurrence? =
+        upcoming(entries, now, 1, lookaheadDays).firstOrNull()
+
+    /** Open tasks with a due time still ahead, soonest first. */
+    fun nextDue(tasks: List<Task>, nowMillis: Long, count: Int): List<Task> =
+        tasks.filter { !it.isCompleted && it.dueDate != null && it.dueDate >= nowMillis }
+            .sortedBy { it.dueDate }
+            .take(count)
 
     private val examPrefix = Regex("""^\s*exam\s*[:\-–]\s*""", RegexOption.IGNORE_CASE)
     private val unitCode = Regex("""^[A-Z]{3}\s?\d{4}\s+""")
