@@ -341,7 +341,7 @@ fun TaskCard(
     OrganicCard(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = !isBlocked) { onClick() },
+            .clickable { onClick() },
         color = when {
             task.isCompleted -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
             isBlocked -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)

@@ -40,9 +40,10 @@ fun ScreenHeader(
         Text(
             text = title,
             style = MaterialTheme.typography.headlineSmall,
-            modifier = Modifier.weight(1f, fill = false)
+            // Takes the spare width so actions sit at the right edge (two weighted
+            // children used to split it, leaving icons stranded mid-row).
+            modifier = Modifier.weight(1f)
         )
-        Spacer(Modifier.weight(1f))
         actions()
     }
 }

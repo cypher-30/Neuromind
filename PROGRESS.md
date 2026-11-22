@@ -33,7 +33,8 @@
 - [x] **Details screens** (`task_details/{id}`, `entry_details/{id}`): tapping a
       task, class or event (list, timetable, Home, widgets, reminders) shows its
       details with Edit / Delete (+ Mark done / Focus for tasks)
-- [ ] Device check of the details screens in light + dark
+- [x] Device check of the details screens in light + dark (widget route, class
+      dialog, locked task, Home priorities now open the task page)
 - [x] **Reboot re-arming passed** (2026-11-22, 9 min after a real reboot): all
       10 event reminders + midnight refresh were back in `dumpsys alarm`
 

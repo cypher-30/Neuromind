@@ -65,13 +65,8 @@ fun DashboardScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    var selectedTask by remember { mutableStateOf<Task?>(null) }
     var showRebalanceDialog by remember { mutableStateOf(false) }
     var planExpanded by rememberSaveable { mutableStateOf(false) }
-
-    if (selectedTask != null) {
-        TaskDetailsDialog(task = selectedTask!!, onDismiss = { selectedTask = null })
-    }
 
     if (showRebalanceDialog) {
         RebalanceDialog(
@@ -191,7 +186,7 @@ fun DashboardScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(Dimens.ListGap)) {
                     uiState.priorityTasks.forEach { task ->
                         key(task.id) {
-                            PriorityTaskRow(task = task, onClick = { selectedTask = task })
+                            PriorityTaskRow(task = task, onClick = { onNavigateToTask(task.id) })
                         }
                     }
                 }
@@ -585,33 +580,6 @@ fun SuggestionCard(suggestion: Suggestion, onActionClick: (Int?) -> Unit, onAskC
             )
         }
     }
-}
-
-@Composable
-fun TaskDetailsDialog(task: Task, onDismiss: () -> Unit) {
-    val formatter = remember { SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(task.title) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (!task.description.isNullOrBlank()) {
-                    Text(task.description, style = MaterialTheme.typography.bodyMedium)
-                } else {
-                    Text("No details provided.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                HorizontalDivider()
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AssistChip(onClick = {}, label = { Text(task.priority.name) }, leadingIcon = { Icon(Icons.AutoMirrored.Filled.LabelImportant, null, modifier = Modifier.size(16.dp)) })
-                    AssistChip(onClick = {}, label = { Text(task.difficulty.name) })
-                }
-                if (task.dueDate != null) {
-                    Text("Due: ${formatter.format(Date(task.dueDate))}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }
-    )
 }
 
 @Composable
