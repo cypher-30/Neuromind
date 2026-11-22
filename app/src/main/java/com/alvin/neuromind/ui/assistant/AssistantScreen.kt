@@ -52,7 +52,8 @@ fun AssistantScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = Dimens.ScreenPaddingHorizontal, vertical = Dimens.ScreenPaddingTop)
+            .padding(horizontal = Dimens.ScreenPaddingHorizontal)
+            .padding(top = Dimens.ScreenPaddingTop)
             .imePadding()
     ) {
         Text("Ask Neuromind", style = MaterialTheme.typography.headlineMedium)
@@ -120,25 +121,72 @@ fun AssistantScreen(
             }
         }
 
+        ComposerBar(
+            text = uiState.inputText,
+            onTextChange = viewModel::onInputChange,
+            onSend = { if (uiState.inputText.isNotBlank()) viewModel.sendMessage() },
+            modifier = Modifier.padding(top = 8.dp, bottom = 12.dp)
+        )
+    }
+}
+
+/**
+ * Message bar: one rounded surface holding the text and the send button, like
+ * a chat app. Grows to 4 lines; Send is muted until there's something to send.
+ */
+@Composable
+private fun ComposerBar(
+    text: String,
+    onTextChange: (String) -> Unit,
+    onSend: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val canSend = text.isNotBlank()
+    androidx.compose.material3.Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.padding(start = 20.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.Bottom
         ) {
-            PillTextField(
-                value = uiState.inputText,
-                onValueChange = viewModel::onInputChange,
-                placeholder = "Message Neuromind",
-                modifier = Modifier.weight(1f),
-                onImeAction = { if (uiState.inputText.isNotBlank()) viewModel.sendMessage() }
+            androidx.compose.foundation.text.BasicTextField(
+                value = text,
+                onValueChange = onTextChange,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(vertical = 11.dp),
+                textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+                cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary),
+                maxLines = 4,
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                    capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Sentences,
+                    imeAction = androidx.compose.ui.text.input.ImeAction.Send
+                ),
+                keyboardActions = androidx.compose.foundation.text.KeyboardActions(onSend = { onSend() }),
+                decorationBox = { inner ->
+                    Box {
+                        if (text.isEmpty()) {
+                            Text(
+                                "Message Neuromind",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        inner()
+                    }
+                }
             )
+            Spacer(Modifier.width(8.dp))
             CircleIconButton(
                 icon = Icons.AutoMirrored.Filled.Send,
                 contentDescription = "Send",
-                onClick = viewModel::sendMessage,
+                onClick = onSend,
                 size = Dimens.CircleButtonSizeLarge,
-                background = MaterialTheme.colorScheme.primary,
-                tint = MaterialTheme.colorScheme.onPrimary
+                background = if (canSend) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                tint = if (canSend) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
