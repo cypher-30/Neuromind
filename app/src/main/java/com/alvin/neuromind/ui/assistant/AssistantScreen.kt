@@ -125,7 +125,9 @@ fun AssistantScreen(
             text = uiState.inputText,
             onTextChange = viewModel::onInputChange,
             onSend = { if (uiState.inputText.isNotBlank()) viewModel.sendMessage() },
-            modifier = Modifier.padding(top = 8.dp, bottom = 12.dp)
+            // Keyboard open: 12dp above it (as before). Closed: the nav capsule already
+            // has its own margin, so a smaller gap keeps the bar from floating.
+            modifier = Modifier.padding(top = 8.dp, bottom = if (WindowInsets.isImeVisible) 12.dp else 2.dp)
         )
     }
 }

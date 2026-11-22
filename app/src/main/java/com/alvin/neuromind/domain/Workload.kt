@@ -12,11 +12,15 @@ import java.time.temporal.ChronoUnit
 data class OverloadWarning(
     val task: Task,
     val due: LocalDateTime,
-    /** Work (and revision) due by then, minutes. */
-    val neededMinutes: Int,
+    /** Task work due by then, minutes. */
+    val workMinutes: Int,
+    /** Revision planned before then, minutes. */
+    val revisionMinutes: Int,
     /** Free time between now and then, minutes. */
     val freeMinutes: Int
-)
+) {
+    val neededMinutes: Int get() = workMinutes + revisionMinutes
+}
 
 /**
  * Early warning for crunches: for each open task due in the next [horizonDays],
@@ -58,7 +62,7 @@ object Workload {
                 ?.sumOf { it.minutes } ?: 0
             val free = freeMinutes(timetable, now, at, dayStart, dayEnd, studyMinutesPerDay)
             if (needed + revisionBefore > free) {
-                out += OverloadWarning(task, at, needed + revisionBefore, free)
+                out += OverloadWarning(task, at, needed, revisionBefore, free)
             }
         }
         // One warning per crunch is enough: keep the earliest deadline that overflows.

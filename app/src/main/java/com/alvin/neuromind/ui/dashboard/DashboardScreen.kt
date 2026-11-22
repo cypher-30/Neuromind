@@ -188,8 +188,9 @@ fun DashboardScreen(
                         Spacer(Modifier.height(6.dp))
                         val dueText = w.due.format(java.time.format.DateTimeFormatter.ofPattern("EEE h:mm a"))
                         Text(
-                            "${w.task.title} (due $dueText): about ${hoursText(w.neededMinutes)} of work is due by then, " +
-                                "but you have about ${hoursText(w.freeMinutes)} free. Start early, cut scope, or move something.",
+                            "${w.task.title} (due $dueText): about ${hoursText(w.workMinutes)} of task work is due by then" +
+                                (if (w.revisionMinutes > 0) ", plus ${hoursText(w.revisionMinutes)} of planned revision" else "") +
+                                ", but you have about ${hoursText(w.freeMinutes)} free. Start early, cut scope, or move something.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )

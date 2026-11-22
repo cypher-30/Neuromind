@@ -5,6 +5,33 @@
 
 ---
 
+## 2026-11-22 (later) — Revision planner, overload warning, learning, smarter Ask
+
+All offline, rule-based; build- and unit-test-verified. **Not yet checked on the phone** (wireless adb dropped).
+
+- **Revision planner** (`domain/RevisionPlanner.kt`, tested against `ICS 2nd Sem/SEMESTER-PLAN.md`):
+  exams = events with "exam" in the title. Study starts the day after the last class (`lastDate`);
+  each unit gets a first pass early, practice near its exam (2 blocks on the last free day), a final pass
+  and a light review on the exam day; max 3 units a day, ~80% of free time shared across exams.
+  Early exams (the Spanish oral) get short sessions on the days before. Screen: `revision` route
+  (Home → "Revision today" → Full plan). Home's work plan only gets what's left of a 6 h study day.
+- **Overload warning** (`domain/Workload.kt`): first deadline in the next 3 days whose task work +
+  planned revision exceeds free time (8:00–21:00 around classes, max 6 h/day). Card on Home.
+- **Learning** (`domain/Learning.kt`): peak 3-hour focus window and per-subject estimate bias from
+  Focus sessions (not tick-off times). Min samples, medians, clamped; Insights → Trends shows them,
+  peak hours have an Apply button. Marking an overdue or long-open task done on its details page asks
+  "When did you finish?" (Just now / Earlier today / Yesterday / On the due date).
+- **Ask**: typo-tolerant task matching (`domain/TaskMatcher.kt`, asks "Did you mean…?" before acting);
+  follow-ups ("mark it done", "yes", "and tomorrow?", "what about Friday?"); "what's due tomorrow";
+  parser understands next week, the 30th, tonight, in 2 hours, Dec 4 / 4th of December.
+- **Spacing**: Scaffold applied the status-bar inset twice (screens sat low); list bottom padding
+  was 100dp on top of the nav capsule's own space (16dp now; 88dp where the Tasks "+" button floats).
+  Ask's composer sits 2dp above the nav when the keyboard is closed (12dp above the keyboard as before).
+
+### Future (noted, not started)
+- **On-device LLM** (MediaPipe LLM Inference + a small Gemma model) for free-form Ask, offline.
+  Large download (~0.5–1.5 GB) and RAM cost; keep the rule-based assistant as the fallback.
+
 ## 2026-11-22 — Widgets cut to six, completion times
 
 - [x] **Task.completedAt** (DB **v13 → v14**, `MIGRATION_13_14`): stamped when a
