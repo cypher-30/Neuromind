@@ -222,6 +222,10 @@ fun NeuromindApp(
         }
 
         Scaffold(
+            // System bars are applied once, by contentInsets below. Left at the
+            // default (safeDrawing), innerPadding carried the status bar too, so
+            // every screen's top was pushed down by it twice.
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
             bottomBar = {
                 if (showBottomNav) {
                     BottomNavBar(navController = navController)
@@ -266,6 +270,7 @@ fun NeuromindApp(
                                 navController.navigate("${Screen.TaskDetails.route}/$taskId")
                             },
                             onNavigateToFocus = { taskId -> navController.navigate(Screen.FocusMode.route + "/$taskId") },
+                            onNavigateToRevision = { navController.navigate(Screen.Revision.route) },
                             isDarkTheme = useDarkTheme,
                             onToggleTheme = {
                                 settingsViewModel.updateTheme(
@@ -413,8 +418,19 @@ fun NeuromindApp(
                         }
                     }
 
+                    composable(Screen.Revision.route) {
+                        val vm = viewModel<com.alvin.neuromind.ui.revision.RevisionViewModel>(
+                            factory = com.alvin.neuromind.ui.revision.RevisionViewModelFactory(repository)
+                        )
+                        com.alvin.neuromind.ui.revision.RevisionScreen(
+                            viewModel = vm,
+                            onNavigateUp = { navController.navigateUp() },
+                            onOpenExam = { navController.navigate("${Screen.EntryDetails.route}/$it") }
+                        )
+                    }
+
                     composable(Screen.Insights.route) {
-                        val factory = InsightsViewModelFactory(repository)
+                        val factory = InsightsViewModelFactory(repository, userPreferencesRepository)
                         val vm = viewModel<InsightsViewModel>(factory = factory)
                         InsightsScreen(viewModel = vm)
                     }

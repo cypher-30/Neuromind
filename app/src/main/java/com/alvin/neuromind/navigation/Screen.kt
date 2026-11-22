@@ -20,6 +20,7 @@ sealed class Screen(val route: String) {
     // Read-only details; editing is a button on these screens.
     data object TaskDetails : Screen("task_details")
     data object EntryDetails : Screen("entry_details")
+    data object Revision : Screen("revision")
 
     // Helper to pass arguments safely
     fun withArgs(vararg args: Any): String {

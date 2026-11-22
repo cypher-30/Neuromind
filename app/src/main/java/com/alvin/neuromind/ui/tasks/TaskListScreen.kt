@@ -256,7 +256,7 @@ private fun TaskItemList(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = Dimens.ScreenPaddingBottomWithNav),
+        contentPadding = PaddingValues(bottom = Dimens.ScreenPaddingBottomWithFab),
         verticalArrangement = Arrangement.spacedBy(Dimens.ListGap)
     ) {
         items(items = tasks, key = { it.id }) { task ->
@@ -491,7 +491,7 @@ private fun TaskSkeletonList() {
     )
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = Dimens.ScreenPaddingBottomWithNav),
+        contentPadding = PaddingValues(bottom = Dimens.ScreenPaddingBottomWithFab),
         verticalArrangement = Arrangement.spacedBy(Dimens.ListGap)
     ) {
         items(6) {

@@ -174,7 +174,7 @@ fun AgendaList(
     LazyColumn(
         state = listState,
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = Dimens.ScreenPaddingBottomWithNav)
+        contentPadding = PaddingValues(bottom = Dimens.ScreenPaddingBottomWithFab)
     ) {
         if (header != null) item(key = "classes_end") { header() }
         sections.forEach { section ->

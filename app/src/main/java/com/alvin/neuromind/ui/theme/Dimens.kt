@@ -9,7 +9,11 @@ import androidx.compose.ui.unit.dp
 object Dimens {
     val ScreenPaddingHorizontal = 20.dp
     val ScreenPaddingTop = 28.dp
-    val ScreenPaddingBottomWithNav = 100.dp // clears the sticky bottom nav
+    // Content already stops above the nav capsule (Scaffold innerPadding), so
+    // this is just breathing room at the end of a list, not clearance for it.
+    val ScreenPaddingBottomWithNav = 16.dp
+    // Lists under the Tasks "+" button: room so the last item can scroll clear of it.
+    val ScreenPaddingBottomWithFab = 88.dp
     val ScreenPaddingBottomNoNav = 40.dp
 
     val SectionGap = 22.dp

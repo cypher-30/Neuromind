@@ -48,6 +48,10 @@ data class DashboardUiState(
     /** Later today, soonest first. */
     val upcomingEvents: List<TimetableEntry> = emptyList(),
     val todaysPlan: Map<TimeSlot, Task> = emptyMap(),
+    /** Today's exam revision sessions (RevisionPlanner). */
+    val revisionToday: List<com.alvin.neuromind.domain.RevisionSession> = emptyList(),
+    /** A deadline in the next 3 days that needs more time than is free before it. */
+    val overload: com.alvin.neuromind.domain.OverloadWarning? = null,
     val burnoutState: BurnoutState? = null,
     val rebalanceProposals: List<RebalanceProposal> = emptyList(),
     val suggestion: Suggestion? = null,
@@ -103,7 +107,18 @@ class DashboardViewModel(
             .take(3)
 
         val focused = focusSessions.filter { it.taskId != null }.groupBy { it.taskId!! }.mapValues { (_, s) -> s.sumOf { it.durationMinutes } }
-        val plan = scheduler.generateSchedule(tasks, timetable, date = today, profile = profile, now = clockNow, focusedMinutes = focused)
+        // Revision is planned from the start of today (stable while you look);
+        // the work plan only gets what's left of a ~6 h study day.
+        val revisionPlan = com.alvin.neuromind.domain.RevisionPlanner.plan(timetable, today)
+        val revisionToday = revisionPlan.on(today)
+        val overload = com.alvin.neuromind.domain.Workload.warnings(
+            tasks, timetable, clockNow, revision = revisionPlan, focusedMinutes = focused
+        ).firstOrNull()
+        val revisionMinutes = revisionToday.sumOf { it.minutes }
+        val plan = scheduler.generateSchedule(
+            tasks, timetable, date = today, profile = profile, now = clockNow, focusedMinutes = focused,
+            maxPlannedMinutes = if (revisionMinutes > 0) (360 - revisionMinutes).coerceAtLeast(0) else Int.MAX_VALUE
+        )
         val burnout = BurnoutAnalyzer.analyze(feedbackLogs)
 
         val overdueTasks = TaskPicker.rebalanceable(tasks)
@@ -129,6 +144,8 @@ class DashboardViewModel(
             happeningNow = happeningNow,
             upcomingEvents = eventsToday,
             todaysPlan = plan,
+            revisionToday = revisionToday,
+            overload = overload,
             burnoutState = burnout,
             rebalanceProposals = rebalanceProposals,
             suggestion = suggestion,

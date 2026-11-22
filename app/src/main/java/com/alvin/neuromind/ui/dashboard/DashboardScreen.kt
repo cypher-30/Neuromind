@@ -62,6 +62,7 @@ fun DashboardScreen(
     onNavigateToAssistant: () -> Unit,
     onNavigateToTask: (Int) -> Unit = {},
     onNavigateToFocus: (Int) -> Unit = {},
+    onNavigateToRevision: () -> Unit = {},
     isDarkTheme: Boolean = false,
     onToggleTheme: () -> Unit = {}
 ) {
@@ -175,6 +176,28 @@ fun DashboardScreen(
             ProgressCard(today = uiState.todayProgress, allDue = uiState.allDue)
         }
 
+        // Crunch warning: a deadline that needs more time than is free before it.
+        uiState.overload?.let { w ->
+            item {
+                OrganicCard(
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    modifier = Modifier.fillMaxWidth().clickable { onNavigateToTask(w.task.id) }
+                ) {
+                    Column {
+                        SectionKicker("Heads up: tight on time", color = MaterialTheme.colorScheme.onErrorContainer)
+                        Spacer(Modifier.height(6.dp))
+                        val dueText = w.due.format(java.time.format.DateTimeFormatter.ofPattern("EEE h:mm a"))
+                        Text(
+                            "${w.task.title} (due $dueText): about ${hoursText(w.neededMinutes)} of work is due by then, " +
+                                "but you have about ${hoursText(w.freeMinutes)} free. Start early, cut scope, or move something.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                }
+            }
+        }
+
         // Today's Priorities
         item {
             Row(
@@ -195,6 +218,27 @@ fun DashboardScreen(
                         key(task.id) {
                             PriorityTaskRow(task = task, onClick = { onNavigateToTask(task.id) })
                         }
+                    }
+                }
+            }
+        }
+
+        // Exam revision for today (RevisionPlanner), with the full plan a tap away.
+        if (uiState.revisionToday.isNotEmpty()) {
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Revision today", style = MaterialTheme.typography.titleLarge)
+                    TextButton(onClick = onNavigateToRevision) { Text("Full plan", color = MaterialTheme.colorScheme.primary) }
+                }
+            }
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(Dimens.ListGap)) {
+                    uiState.revisionToday.forEach { s ->
+                        com.alvin.neuromind.ui.revision.RevisionSessionRow(s, onClick = onNavigateToRevision, showHint = true)
                     }
                 }
             }
@@ -638,4 +682,9 @@ fun AiPlanItem(slot: TimeSlot, task: Task) {
             }
         }
     }
+}
+
+private fun hoursText(minutes: Int): String {
+    val h = minutes / 60.0
+    return if (h < 1) "$minutes min" else if (h % 1.0 < 0.25) "${h.toInt()} h" else "%.1f h".format(h)
 }

@@ -30,8 +30,11 @@ class Scheduler {
         profile: CognitiveProfile = CognitiveProfile(),
         now: LocalDateTime? = null,
         /** Minutes already spent in Focus per task id, so only what's left is planned. */
-        focusedMinutes: Map<Int, Int> = emptyMap()
+        focusedMinutes: Map<Int, Int> = emptyMap(),
+        /** Cap on planned work (e.g. what's left of the day after revision sessions). */
+        maxPlannedMinutes: Int = Int.MAX_VALUE
     ): Map<TimeSlot, Task> {
+        var plannedMinutes = 0
         val schedule = mutableMapOf<TimeSlot, Task>()
 
         val nowMillis = (now ?: LocalDateTime.now()).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
@@ -57,6 +60,8 @@ class Scheduler {
             val conflict = timetable.find { entry -> entry.blocks(date, currentTime, endTime) }
 
             if (conflict == null && endTime.isBefore(dayEnd)) {
+                if (plannedMinutes + taskDuration > maxPlannedMinutes) continue
+                plannedMinutes += taskDuration.toInt()
                 schedule[TimeSlot(currentTime, endTime)] = task
                 currentTime = endTime.plusMinutes(15) // 15-minute break between tasks
             } else if (conflict != null) {
