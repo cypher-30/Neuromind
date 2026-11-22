@@ -40,10 +40,13 @@ class TaskDetailsViewModel(private val repository: TaskRepository, taskId: Int) 
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Details.Loading)
 
-    fun setCompleted(done: Boolean) {
+    /** [finishedAt]: when it was really finished (marked late); null = now. */
+    fun setCompleted(done: Boolean, finishedAt: Long? = null) {
         val details = (state.value as? Details.Loaded)?.value ?: return
         if (done && details.isBlocked) return
-        viewModelScope.launch { repository.updateTask(details.task.copy(isCompleted = done)) }
+        viewModelScope.launch {
+            repository.updateTask(details.task.copy(isCompleted = done, completedAt = if (done) finishedAt else null))
+        }
     }
 
     fun delete() {

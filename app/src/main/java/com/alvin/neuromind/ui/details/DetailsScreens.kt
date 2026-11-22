@@ -202,6 +202,15 @@ fun TaskDetailsScreen(
         return
     }
     val task = details.task
+    var askWhenFinished by rememberSaveable { mutableStateOf(false) }
+
+    if (askWhenFinished) {
+        WhenFinishedDialog(
+            task = task,
+            onPick = { at -> askWhenFinished = false; viewModel.setCompleted(true, at) },
+            onDismiss = { askWhenFinished = false }
+        )
+    }
 
     if (confirmDelete) {
         OrganicConfirmDialog(
@@ -268,7 +277,13 @@ fun TaskDetailsScreen(
                     text = if (task.isCompleted) "Mark not done" else "Mark done",
                     ghost = true,
                     enabled = task.isCompleted || !details.isBlocked,
-                    onClick = { viewModel.setCompleted(!task.isCompleted) },
+                    onClick = {
+                        // Ticked off late? Ask when it was really done, so progress and
+                        // the activity grid credit the right day.
+                        val openLong = System.currentTimeMillis() - task.createdAt > 2 * 24 * 60 * 60 * 1000L
+                        if (!task.isCompleted && (task.isOverdue || openLong)) askWhenFinished = true
+                        else viewModel.setCompleted(!task.isCompleted)
+                    },
                     modifier = Modifier.weight(1f)
                 )
                 // Errands aren't Focus work.
@@ -371,4 +386,39 @@ private fun NotesCard(notes: String) {
             SelectionContainer { Text(notes, style = MaterialTheme.typography.bodyMedium) }
         }
     }
+}
+
+/** "When did you finish?" for tasks marked done late. Picks a time on the right day. */
+@Composable
+private fun WhenFinishedDialog(task: Task, onPick: (Long?) -> Unit, onDismiss: () -> Unit) {
+    val zone = ZoneId.systemDefault()
+    val now = LocalDateTime.now()
+    val options = buildList {
+        add("Just now" to null)
+        add("Earlier today" to now.minusHours(1).coerceAtLeast(now.toLocalDate().atStartOfDay()))
+        add("Yesterday" to now.toLocalDate().minusDays(1).atTime(18, 0))
+        task.dueDate?.let { due ->
+            val at = Instant.ofEpochMilli(due).atZone(zone).toLocalDateTime()
+            if (at.isBefore(now.toLocalDate().minusDays(1).atStartOfDay())) add("On the due date (${at.format(shortDateFmt)})" to at)
+        }
+    }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("When did you finish it?") },
+        text = {
+            Column {
+                Text("So your progress and activity count the right day.", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(8.dp))
+                options.forEach { (label, at) ->
+                    androidx.compose.material3.TextButton(
+                        onClick = { onPick(at?.atZone(zone)?.toInstant()?.toEpochMilli()) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text(label, modifier = Modifier.fillMaxWidth()) }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
 }

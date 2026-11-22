@@ -72,7 +72,7 @@ fun InsightsScreen(viewModel: InsightsViewModel) {
 
         when (tab) {
             0 -> overviewTab(uiState)
-            1 -> trendsTab(uiState)
+            1 -> trendsTab(uiState, onApplyPeak = viewModel::applyLearnedPeak)
             else -> journalTab(uiState)
         }
     }
@@ -127,7 +127,7 @@ private fun LazyListScope.overviewTab(uiState: InsightsUiState) {
     }
 }
 
-private fun LazyListScope.trendsTab(uiState: InsightsUiState) {
+private fun LazyListScope.trendsTab(uiState: InsightsUiState, onApplyPeak: (com.alvin.neuromind.domain.LearnedPeak) -> Unit = {}) {
     uiState.retroInsights?.let { retro ->
         item { WeeklyTrendCard(weeklyTrend = retro.weeklyTrend) }
         item {
@@ -145,6 +145,10 @@ private fun LazyListScope.trendsTab(uiState: InsightsUiState) {
 
     uiState.focusSummary?.let { summary ->
         item { DeepWorkCard(summary = summary) }
+    }
+
+    if (uiState.learnedPeak != null || uiState.estimateBias.isNotEmpty()) {
+        item { LearnedCard(uiState, onApplyPeak = onApplyPeak) }
     }
 
     if (uiState.retroInsights == null && uiState.subjectBreakdown.isEmpty() && uiState.focusSummary == null) {
@@ -452,5 +456,49 @@ private fun DeepWorkCard(summary: FocusSummary) {
             barColor = MaterialTheme.colorScheme.secondary,
             height = 80.dp
         )
+    }
+}
+
+/** What Neuromind learned from your Focus sessions: suggestions you can apply. */
+@Composable
+private fun LearnedCard(state: InsightsUiState, onApplyPeak: (com.alvin.neuromind.domain.LearnedPeak) -> Unit) {
+    fun hour(h: Int) = java.time.LocalTime.of(h % 24, 0).format(java.time.format.DateTimeFormatter.ofPattern("h a"))
+    OrganicCard(modifier = Modifier.fillMaxWidth()) {
+        Column {
+            SectionKicker("Learned from your Focus sessions", color = MaterialTheme.colorScheme.secondary)
+            state.learnedPeak?.let { peak ->
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "You focus best ${hour(peak.startHour)} to ${hour(peak.endHour)} " +
+                        "(${(peak.shareOfFocus * 100).toInt()}% of your focus time, ${peak.sessions} sessions).",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                val current = state.currentPeak
+                if (current == null || current.first != peak.startHour || current.second != peak.endHour) {
+                    current?.let {
+                        Text("Your peak hours are set to ${hour(it.first)} to ${hour(it.second)}.",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    com.alvin.neuromind.ui.components.PillButton(
+                        text = "Use ${hour(peak.startHour)} to ${hour(peak.endHour)} as my peak hours",
+                        onClick = { onApplyPeak(peak) },
+                        ghost = true
+                    )
+                } else {
+                    Text("That's already your peak window.", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            state.estimateBias.forEach { b ->
+                Spacer(Modifier.height(8.dp))
+                val word = if (b.ratio > 1) "longer" else "less time"
+                Text(
+                    "${b.subject} tasks take about ${"%.1f".format(b.ratio)}× your estimate ($word, from ${b.tasks} tasks). " +
+                        "Adjust estimates for this subject when you add tasks.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
     }
 }

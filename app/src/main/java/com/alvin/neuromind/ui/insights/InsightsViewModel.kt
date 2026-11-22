@@ -14,6 +14,7 @@ import com.alvin.neuromind.domain.RetroInsights
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.stateIn
 import java.time.Instant
 import java.time.LocalDate
@@ -35,16 +36,37 @@ data class InsightsUiState(
     val focusSummary: FocusSummary? = null,
     val subjectBreakdown: List<SubjectStat> = emptyList(),
     val hasFeedbackData: Boolean = false,
+    /** Learned from Focus sessions (see domain/Learning): suggestions only. */
+    val learnedPeak: com.alvin.neuromind.domain.LearnedPeak? = null,
+    val currentPeak: Pair<Int, Int>? = null,
+    val estimateBias: List<com.alvin.neuromind.domain.EstimateBias> = emptyList(),
     val isLoading: Boolean = true
 )
 
-class InsightsViewModel(private val repository: TaskRepository) : ViewModel() {
+class InsightsViewModel(
+    private val repository: TaskRepository,
+    private val userPrefs: com.alvin.neuromind.data.preferences.UserPreferencesRepository? = null
+) : ViewModel() {
+
+    private val peakPrefs = userPrefs?.let { prefs ->
+        combine(prefs.peakStartHour, prefs.peakEndHour) { s, e -> s to e }
+    } ?: kotlinx.coroutines.flow.flowOf(null)
+
+    /** Uses the learned focus window as the peak hours (Settings shows the same value). */
+    fun applyLearnedPeak(peak: com.alvin.neuromind.domain.LearnedPeak) {
+        val prefs = userPrefs ?: return
+        viewModelScope.launch {
+            prefs.savePeakStartHour(peak.startHour)
+            prefs.savePeakEndHour(peak.endHour)
+        }
+    }
 
     val uiState: StateFlow<InsightsUiState> = combine(
         repository.allTasks,
         repository.allFeedbackLogs,
-        repository.allFocusSessions
-    ) { tasks, feedbackLogs, focusSessions ->
+        repository.allFocusSessions,
+        peakPrefs
+    ) { tasks, feedbackLogs, focusSessions, currentPeak ->
 
         // Weekly completion chart
         val today = LocalDate.now()
@@ -128,6 +150,9 @@ class InsightsViewModel(private val repository: TaskRepository) : ViewModel() {
             focusSummary = focusSummary,
             subjectBreakdown = subjectBreakdown,
             hasFeedbackData = recentFeedback.isNotEmpty(),
+            learnedPeak = com.alvin.neuromind.domain.Learning.peakWindow(focusSessions),
+            currentPeak = currentPeak,
+            estimateBias = com.alvin.neuromind.domain.Learning.estimateBias(tasks, focusSessions),
             isLoading = false
         )
     }.stateIn(
@@ -138,12 +163,13 @@ class InsightsViewModel(private val repository: TaskRepository) : ViewModel() {
 }
 
 class InsightsViewModelFactory(
-    private val repository: TaskRepository
+    private val repository: TaskRepository,
+    private val userPrefs: com.alvin.neuromind.data.preferences.UserPreferencesRepository? = null
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
         if (modelClass.isAssignableFrom(InsightsViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return InsightsViewModel(repository) as T
+            return InsightsViewModel(repository, userPrefs) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }
