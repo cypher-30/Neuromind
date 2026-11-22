@@ -49,7 +49,9 @@ data class RevisionSettings(
     /** Travel/settling time kept free before and after an exam. */
     val examBufferMinutes: Int = 60,
     val preExamReviewMinutes: Int = 90,
-    val eveningAfterExamMinutes: Int = 120
+    val eveningAfterExamMinutes: Int = 120,
+    /** A free day is topped up to about this much revision. */
+    val topUpMinutes: Int = 240
 )
 
 /**
@@ -206,6 +208,24 @@ object RevisionPlanner {
             }
         }
 
+        // 5. Top-up: a free (non-exam) day shouldn't sit nearly empty while exams
+        // loom. Bring it to ~4 h with extra practice for units already started,
+        // nearest exam first, one block per unit per day.
+        for (day in studyDays.filter { it.exam == null }) {
+            var planned = sessions.filter { it.date == day.date }.sumOf { it.minutes }
+            while (planned < settings.topUpMinutes && day.main >= 45) {
+                val pick = study
+                    .filter { need ->
+                        val first = need.firstDay
+                        first != null && first.isBefore(day.date) && need.exam.name !in day.units && canTake(day, need, 45)
+                    }
+                    .minByOrNull { it.exam.date } ?: break
+                val minutes = minOf(120, day.main, (settings.topUpMinutes - planned).coerceAtLeast(60))
+                add(day, pick, RevisionKind.PRACTICE, minutes)
+                planned += minutes
+            }
+        }
+
         val shortfall = needs.filter { it.remaining >= 30 }.associate { it.exam.name to it.remaining }
         // Within a day: the pre-exam review first, then the rest in exam order.
         val ordered = sessions.sortedWith(
@@ -222,7 +242,11 @@ object RevisionPlanner {
         val busy = todays.filter { !it.isAllDay }.map { it.startTime to it.endTime }
         val exam = day.exam
         if (exam == null) {
-            day.main = minOf(s.studyDayMinutes, free(s.dayStart, s.dayEnd, busy))
+            // Long commitments tire you out: fixed time beyond 2 h comes off the
+            // study day (an 8 h workshop leaves an evening hour), never below 1 h.
+            val committed = (ChronoUnit.MINUTES.between(s.dayStart, s.dayEnd).toInt() - free(s.dayStart, s.dayEnd, busy))
+            val energy = (s.studyDayMinutes + 120 - committed).coerceAtLeast(60)
+            day.main = minOf(s.studyDayMinutes, energy, free(s.dayStart, s.dayEnd, busy))
         } else {
             val preEnd = exam.entry.startTime.minusMinutes(s.examBufferMinutes.toLong())
             val postStart = exam.entry.endTime.plusMinutes(s.examBufferMinutes.toLong())

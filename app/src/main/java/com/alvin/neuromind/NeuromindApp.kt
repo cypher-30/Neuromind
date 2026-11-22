@@ -510,7 +510,13 @@ private fun BottomNavBar(navController: NavController) {
             .fillMaxWidth()
             // Same side insets as the content above (camera cutout in
             // landscape), so the capsule lines up with the cards.
-            .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.displayCutout))
+            // Sides and bottom only: the display cutout (punch-hole camera) has a
+            // top inset as tall as the status bar, which padded a band of empty
+            // space above the capsule on every tab.
+            .windowInsetsPadding(
+                WindowInsets.navigationBars.union(WindowInsets.displayCutout)
+                    .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
+            )
             .padding(horizontal = Dimens.ScreenPaddingHorizontal, vertical = 10.dp)
             .clip(Pill)
             .background(MaterialTheme.colorScheme.surface)

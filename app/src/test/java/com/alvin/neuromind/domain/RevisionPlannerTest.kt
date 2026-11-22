@@ -34,6 +34,7 @@ class RevisionPlannerTest {
         cls("Crypto", DayOfWeek.WEDNESDAY, t(8, 15), t(10, 15)),
         event("Meeting with mentor", d(23, 11), t(15, 15), t(16, 15)),
         event("Spanish oral exam", d(24, 11), t(14, 15), t(16, 15)),
+        event("WBL Decoded", d(26, 11), t(9), t(17)),
         event("EXAM: ICS 3102 Mobile App Dev", d(2), t(16), t(18)),
         event("EXAM: HLE 3204 Spanish IV", d(4), t(13, 30), t(15, 30)),
         event("EXAM: ICS 3206 Server Admin", d(7), t(13, 30), t(15, 30)),
@@ -108,5 +109,15 @@ class RevisionPlannerTest {
             plan.on(day).filter { it.examName == exam }.sumOf { it.minutes }.toDouble() / plan.on(day).sumOf { it.minutes }
         assertTrue("Thu 3 Spanish share ${share(d(3), "Spanish IV")}", share(d(3), "Spanish IV") >= 0.5)
         assertTrue("Wed 9 RM share ${share(d(9), "Research Methodology")}", share(d(9), "Research Methodology") >= 0.5)
+    }
+
+    @Test
+    fun `a long workshop day is light and free break days are used`() {
+        // WBL Decoded 9-17 on Thu 26: just an evening hour, like the hand plan.
+        assertTrue(plan.on(d(26, 11)).sumOf { it.minutes } <= 60)
+        // Free study-break days get real work (hand plan: ~6 h).
+        for (day in listOf(d(29, 11), d(30, 11))) {
+            assertTrue("$day ${plan.on(day).sumOf { it.minutes }}", plan.on(day).sumOf { it.minutes } >= 240)
+        }
     }
 }
