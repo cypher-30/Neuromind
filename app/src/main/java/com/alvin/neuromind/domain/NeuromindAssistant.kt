@@ -98,10 +98,7 @@ object NeuromindAssistant {
         input: String = ""
     ): AssistantResponse {
         return when (intent) {
-            AssistantIntent.SCHEDULE_QUERY  -> scheduleResponse(
-                timetable,
-                day = if (Regex("\\btomorrow\\b").containsMatchIn(input.lowercase())) LocalDate.now().plusDays(1) else LocalDate.now()
-            )
+            AssistantIntent.SCHEDULE_QUERY  -> scheduleResponse(timetable, day = dayIn(input) ?: LocalDate.now())
             AssistantIntent.TASK_QUERY      -> taskQueryResponse(tasks)
             AssistantIntent.MOOD_RESPONSE   -> moodResponse(tasks)
             AssistantIntent.FOCUS_REQUEST   -> focusResponse(tasks)
@@ -119,10 +116,35 @@ object NeuromindAssistant {
         }
     }
 
+    /** The day a message talks about: today, tomorrow or a weekday (the next one). */
+    fun dayIn(input: String, today: LocalDate = LocalDate.now()): LocalDate? {
+        val lower = input.lowercase()
+        if (Regex("\\btoday\\b").containsMatchIn(lower)) return today
+        if (Regex("\\btomorrow\\b").containsMatchIn(lower)) return today.plusDays(1)
+        return DayOfWeek.entries.firstOrNull { Regex("\\b${it.name.lowercase()}\\b").containsMatchIn(lower) }
+            ?.let { today.with(java.time.temporal.TemporalAdjusters.nextOrSame(it)) }
+    }
+
+    /** "What's due tomorrow?": open tasks due on [day]. */
+    fun tasksDueOnResponse(tasks: List<Task>, day: LocalDate, today: LocalDate = LocalDate.now()): AssistantResponse {
+        val zone = java.time.ZoneId.systemDefault()
+        val due = tasks.filter { t ->
+            !t.isCompleted && t.dueDate?.let { java.time.Instant.ofEpochMilli(it).atZone(zone).toLocalDate() } == day
+        }
+        val label = when (day) {
+            today -> "today"
+            today.plusDays(1) -> "tomorrow"
+            else -> "on " + dayName(day.dayOfWeek)
+        }
+        return if (due.isEmpty()) AssistantResponse("Nothing due $label.")
+        else AssistantResponse("Due $label:\n" + due.joinToString("\n") { "• ${it.title}" })
+    }
+
     // ─── Helper: strip verb prefixes to extract the target task title ───────────
     fun extractTaskTarget(input: String): String {
         val lower = input.lowercase()
         return lower
+            .replace(Regex("(?i)^(i've |i have |i just |just )"), "")
             .replace(Regex("(?i)^(mark|complete|finish|did|finished|i did|i finished|i completed)\\s+"), "")
             .replace(Regex("(?i)\\s+(done|complete|completed|as done|as complete|as finished)\\s*$"), "")
             .trim()
@@ -132,7 +154,11 @@ object NeuromindAssistant {
     // ─── Private responders ──────────────────────────────────────────────────────
 
     private fun scheduleResponse(timetable: List<TimetableEntry>, day: LocalDate = LocalDate.now()): AssistantResponse {
-        val dayName = if (day == LocalDate.now()) "today" else "tomorrow"
+        val dayName = when (day) {
+            LocalDate.now() -> "today"
+            LocalDate.now().plusDays(1) -> "tomorrow"
+            else -> dayName(day.dayOfWeek)
+        }
         val todayEntries = timetable
             .filter { it.occursOn(day) }
             .sortedWith(compareByDescending<TimetableEntry> { it.isAllDay }.thenBy { it.startTime })

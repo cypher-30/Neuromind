@@ -11,6 +11,8 @@ import com.alvin.neuromind.domain.AssistantAction
 import com.alvin.neuromind.domain.AssistantIntent
 import com.alvin.neuromind.domain.NeuromindAssistant
 import com.alvin.neuromind.domain.SmartInputHelper
+import com.alvin.neuromind.domain.TaskMatch
+import com.alvin.neuromind.domain.TaskMatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -48,6 +50,11 @@ class AssistantViewModel(
 
     private var nextId = 0
 
+    // Conversation context, so follow-ups work: "mark it done", "yes", "and tomorrow?".
+    private var lastTask: Task? = null
+    private var pendingComplete: Task? = null
+    private var lastIntent: AssistantIntent? = null
+
     fun onInputChange(text: String) {
         _uiState.update { it.copy(inputText = text) }
     }
@@ -65,11 +72,34 @@ class AssistantViewModel(
             val feedbackLogs = repository.allFeedbackLogs.first()
             val profile      = userPrefs.cognitiveProfile.first()
 
-            val intent = NeuromindAssistant.classify(text)
+            val lower = text.lowercase().trim().trimEnd('?', '!', '.')
 
-            when (intent) {
-                AssistantIntent.CREATE_TASK   -> handleCreateTask(text)
-                AssistantIntent.COMPLETE_TASK -> handleCompleteTask(text, tasks)
+            // "yes" / "no" to "Did you mean …?"
+            pendingComplete?.let { task ->
+                pendingComplete = null
+                if (Regex("^(yes|yeah|yep|yup|sure|correct|that one|ok|okay)\\b").containsMatchIn(lower)) {
+                    complete(task); return@launch
+                }
+                if (Regex("^(no|nope|nah)\\b").containsMatchIn(lower)) {
+                    reply("Okay, I left it. Try a few more words from the task's name."); return@launch
+                }
+            }
+
+            var intent = NeuromindAssistant.classify(text)
+            // "and tomorrow?" / "what about Friday?": the last question, another day.
+            val day = NeuromindAssistant.dayIn(text)
+            val shortFollowUp = day != null && lower.split(Regex("\\s+")).size <= 4 &&
+                Regex("^(and|what about|how about|ok and)\\b").containsMatchIn(lower)
+            if (shortFollowUp) {
+                intent = if (lastIntent == AssistantIntent.TASK_QUERY) AssistantIntent.TASK_QUERY else AssistantIntent.SCHEDULE_QUERY
+            }
+            lastIntent = intent
+
+            when {
+                intent == AssistantIntent.CREATE_TASK -> handleCreateTask(text)
+                intent == AssistantIntent.COMPLETE_TASK -> handleCompleteTask(text, tasks)
+                intent == AssistantIntent.TASK_QUERY && day != null ->
+                    reply(NeuromindAssistant.tasksDueOnResponse(tasks, day).message)
                 else -> {
                     val response = NeuromindAssistant.respond(intent, tasks, timetable, profile, feedbackLogs, input = text)
                     val action   = response.actionType?.let { PendingNav(it, response.taskId) }
@@ -86,6 +116,8 @@ class AssistantViewModel(
 
         viewModelScope.launch {
             repository.insertTask(newTask)
+            // Remember it for "mark it done" (insertTask doesn't return the id).
+            lastTask = repository.allTasks.first().lastOrNull { it.title == newTask.title && !it.isCompleted }
 
             val duePart = if (parsed.dueDate != null) {
                 val fmt = SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
@@ -103,26 +135,40 @@ class AssistantViewModel(
     }
 
     private fun handleCompleteTask(text: String, tasks: List<Task>) {
-        val target  = NeuromindAssistant.extractTaskTarget(text)
-        val matches = tasks.filter { !it.isCompleted && it.title.contains(target, ignoreCase = true) }
-
-        val reply = when {
-            matches.isEmpty() -> {
-                "I couldn't find a task matching \"$target\". Check your task list?"
-            }
-            matches.size > 1 -> {
-                val names = matches.take(3).joinToString(", ") { "\"${it.title}\"" }
-                "I found a few matches: $names. Can you be more specific?"
-            }
-            else -> {
-                val task = matches.first()
-                viewModelScope.launch { repository.updateTask(task.copy(isCompleted = true)) }
-                "Done! ✅ Marked \"${task.title}\" as complete. Nice work!"
-            }
+        val target = NeuromindAssistant.extractTaskTarget(text)
+        // "mark it done" / "that's done": the task we just talked about.
+        val rest = target.replace(Regex("\\b(done|finished|complete|completed|as|mark)\\b"), "").trim()
+        val last = lastTask
+        if (rest.isEmpty() || rest in setOf("it", "that", "this", "that one", "this one", "that's", "it's")) {
+            val current = last?.let { l -> tasks.firstOrNull { it.id == l.id } }
+            if (current != null && !current.isCompleted) complete(current)
+            else reply("Which task? Tell me a few words from its name.")
+            return
         }
+        when (val m = TaskMatcher.match(target, tasks)) {
+            is TaskMatch.Exact -> complete(m.task)
+            is TaskMatch.Likely -> {
+                pendingComplete = m.task
+                lastTask = m.task
+                reply("Did you mean \"${m.task.title}\"? Say yes and I'll mark it done.")
+            }
+            is TaskMatch.Several -> {
+                val names = m.tasks.take(3).joinToString(", ") { "\"${it.title}\"" }
+                reply("I found a few matches: $names. Which one?")
+            }
+            TaskMatch.None -> reply("I couldn't find a task matching \"$target\". Check your task list?")
+        }
+    }
 
-        val botMsg = ChatMessage(id = nextId++, text = reply, isUser = false)
+    private fun reply(text: String) {
+        val botMsg = ChatMessage(id = nextId++, text = text, isUser = false)
         _uiState.update { it.copy(messages = it.messages + botMsg, isThinking = false) }
+    }
+
+    private fun complete(task: Task) {
+        lastTask = task
+        viewModelScope.launch { repository.updateTask(task.copy(isCompleted = true)) }
+        reply("Done! ✅ Marked \"${task.title}\" as complete. Nice work!")
     }
 }
 
