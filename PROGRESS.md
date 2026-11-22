@@ -35,6 +35,16 @@
       details with Edit / Delete (+ Mark done / Focus for tasks)
 - [x] Device check of the details screens in light + dark (widget route, class
       dialog, locked task, Home priorities now open the task page)
+- [x] **"Do it on the day" tasks** (DB **v14 → v15**, `Task.onDueDay`): errands and
+      appointments stay out of the plan, priorities, widget and suggestions until
+      their day, show in priorities on it, and are never Focus work or
+      rebalanced. One rule in `domain/TaskPicker.kt` (tested). Monday's four
+      errands flagged through the editor; Home no longer says "Focus now: Sign
+      Crypto attendance"
+- [x] Plan/suggestions: blocked tasks excluded, most urgent first, plan never
+      offers slots already past today
+- [x] Ask: whole-word intents ("which" isn't "hi"), "tomorrow" answers for
+      tomorrow, questions aren't completion commands; Home "Focus now" opens Focus
 - [x] **Reboot re-arming passed** (2026-11-22, 9 min after a real reboot): all
       10 event reminders + midnight refresh were back in `dumpsys alarm`
 
