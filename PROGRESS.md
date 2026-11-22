@@ -45,6 +45,11 @@
       offers slots already past today
 - [x] Ask: whole-word intents ("which" isn't "hi"), "tomorrow" answers for
       tomorrow, questions aren't completion commands; Home "Focus now" opens Focus
+- [x] Ask: chat-style message bar (send inside, grows to 4 lines)
+- [x] Ask/quick add flag errands said with a day ("I need to go to the bank on
+      Tuesday at 10am" -> on-the-day task); checked on the phone
+- [x] Plan spreads tasks over 90 min across the days to their deadline (minus
+      Focus time); Today's priorities = overdue + today's errands + due in 3 days
 - [x] **Reboot re-arming passed** (2026-11-22, 9 min after a real reboot): all
       10 event reminders + midnight refresh were back in `dumpsys alarm`
 
