@@ -47,6 +47,7 @@ import com.alvin.neuromind.data.TimetableEntry
 import com.alvin.neuromind.domain.BurnoutState
 import com.alvin.neuromind.domain.RebalanceProposal
 import com.alvin.neuromind.domain.Suggestion
+import com.alvin.neuromind.domain.SuggestionType
 import com.alvin.neuromind.domain.TimeSlot
 import java.text.SimpleDateFormat
 import java.time.format.DateTimeFormatter
@@ -60,6 +61,7 @@ fun DashboardScreen(
     onNavigateToTimetable: () -> Unit,
     onNavigateToAssistant: () -> Unit,
     onNavigateToTask: (Int) -> Unit = {},
+    onNavigateToFocus: (Int) -> Unit = {},
     isDarkTheme: Boolean = false,
     onToggleTheme: () -> Unit = {}
 ) {
@@ -154,7 +156,12 @@ fun DashboardScreen(
                 item {
                     SuggestionCard(
                         suggestion = suggestion,
-                        onActionClick = { taskId -> if (taskId != null) onNavigateToTask(taskId) },
+                        onActionClick = { taskId ->
+                            if (taskId != null) {
+                                // "Focus now" / "Start task" start a session; "View task" (overdue) shows it.
+                                if (suggestion.type == SuggestionType.OVERDUE_ALERT) onNavigateToTask(taskId) else onNavigateToFocus(taskId)
+                            }
+                        },
                         onAskClick = onNavigateToAssistant
                     )
                 }

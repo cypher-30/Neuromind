@@ -71,7 +71,7 @@ class AssistantViewModel(
                 AssistantIntent.CREATE_TASK   -> handleCreateTask(text)
                 AssistantIntent.COMPLETE_TASK -> handleCompleteTask(text, tasks)
                 else -> {
-                    val response = NeuromindAssistant.respond(intent, tasks, timetable, profile, feedbackLogs)
+                    val response = NeuromindAssistant.respond(intent, tasks, timetable, profile, feedbackLogs, input = text)
                     val action   = response.actionType?.let { PendingNav(it, response.taskId) }
                     val botMsg   = ChatMessage(id = nextId++, text = response.message, isUser = false, action = action)
                     _uiState.update { it.copy(messages = it.messages + botMsg, isThinking = false) }

@@ -48,7 +48,9 @@ object NeuromindAssistant {
             lower.containsAny("add task", "create task", "new task", "remind me to", "add a task") ->
                 AssistantIntent.CREATE_TASK
             lower.containsAny("mark", "done", "finished", "complete", "i did", "i finished", "completed") &&
-                !lower.containsAny("how many", "overdue", "pending", "all complete") ->
+                !lower.containsAny("how many", "overdue", "pending", "all complete") &&
+                // Questions ("what have I done?", "did I finish…?") aren't commands.
+                !lower.startsWithAny("what", "how", "did", "have", "which", "when", "show") ->
                 AssistantIntent.COMPLETE_TASK
 
             // Greeting
@@ -88,10 +90,14 @@ object NeuromindAssistant {
         tasks: List<Task>,
         timetable: List<TimetableEntry>,
         profile: CognitiveProfile,
-        feedbackLogs: List<FeedbackLog> = emptyList()
+        feedbackLogs: List<FeedbackLog> = emptyList(),
+        input: String = ""
     ): AssistantResponse {
         return when (intent) {
-            AssistantIntent.SCHEDULE_QUERY  -> scheduleResponse(timetable)
+            AssistantIntent.SCHEDULE_QUERY  -> scheduleResponse(
+                timetable,
+                day = if (Regex("\\btomorrow\\b").containsMatchIn(input.lowercase())) LocalDate.now().plusDays(1) else LocalDate.now()
+            )
             AssistantIntent.TASK_QUERY      -> taskQueryResponse(tasks)
             AssistantIntent.MOOD_RESPONSE   -> moodResponse(tasks)
             AssistantIntent.FOCUS_REQUEST   -> focusResponse(tasks)
@@ -121,15 +127,15 @@ object NeuromindAssistant {
 
     // ─── Private responders ──────────────────────────────────────────────────────
 
-    private fun scheduleResponse(timetable: List<TimetableEntry>): AssistantResponse {
-        val today = LocalDate.now()
+    private fun scheduleResponse(timetable: List<TimetableEntry>, day: LocalDate = LocalDate.now()): AssistantResponse {
+        val dayName = if (day == LocalDate.now()) "today" else "tomorrow"
         val todayEntries = timetable
-            .filter { it.occursOn(today) }
+            .filter { it.occursOn(day) }
             .sortedWith(compareByDescending<TimetableEntry> { it.isAllDay }.thenBy { it.startTime })
 
         return if (todayEntries.isEmpty()) {
             AssistantResponse(
-                "You have no classes or events scheduled for today. A great day to focus on your tasks!",
+                "You have no classes or events scheduled for $dayName. A great day to focus on your tasks!",
                 actionType = AssistantAction.NAVIGATE_TIMETABLE
             )
         } else {
@@ -140,7 +146,7 @@ object NeuromindAssistant {
                 "• ${entry.title} $time$venue"
             }
             AssistantResponse(
-                "Here's your schedule for today:\n\n$list",
+                "Here's your schedule for $dayName:\n\n$list",
                 actionType = AssistantAction.NAVIGATE_TIMETABLE
             )
         }
@@ -168,8 +174,8 @@ object NeuromindAssistant {
     }
 
     private fun moodResponse(tasks: List<Task>): AssistantResponse {
-        val incompleteTasks = tasks.filter { !it.isCompleted }
-        val easyTask = incompleteTasks.minByOrNull { it.difficulty.ordinal }
+        // Lightest real work (not errands or tasks waiting on another), most urgent among equals.
+        val easyTask = TaskPicker.workQueue(tasks, System.currentTimeMillis()).minByOrNull { it.difficulty.ordinal }
 
         return if (easyTask == null) {
             AssistantResponse("Nothing on your task list right now. Take a well-earned break!")
@@ -183,9 +189,7 @@ object NeuromindAssistant {
     }
 
     private fun focusResponse(tasks: List<Task>): AssistantResponse {
-        val topTask = tasks
-            .filter { !it.isCompleted }
-            .maxWithOrNull(compareBy<Task> { it.priority }.thenBy { it.difficulty })
+        val topTask = TaskPicker.workQueue(tasks, System.currentTimeMillis()).firstOrNull()
 
         return if (topTask == null) {
             AssistantResponse("No pending tasks to focus on. Enjoy your free time!")
@@ -266,8 +270,7 @@ object NeuromindAssistant {
                 taskId = suggestion.taskId
             )
         } else {
-            val topTask = tasks.filter { !it.isCompleted }
-                .maxWithOrNull(compareBy<Task> { it.priority }.thenBy { it.difficulty })
+            val topTask = TaskPicker.workQueue(tasks, System.currentTimeMillis()).firstOrNull()
             if (topTask != null) {
                 AssistantResponse(
                     "Your top priority right now is '${topTask.title}'. Give it your attention!",
@@ -307,6 +310,11 @@ object NeuromindAssistant {
     private fun dayName(day: DayOfWeek): String =
         day.name.lowercase().replaceFirstChar { it.uppercase() }
 
+    // Whole words/phrases (plus s/es/ed/ing endings) only: plain contains() read
+    // "this"/"which" as "hi" (GREETING) and "support" as "sup".
     private fun String.containsAny(vararg keywords: String): Boolean =
-        keywords.any { this.contains(it) }
+        keywords.any { Regex("\\b" + Regex.escape(it) + "(s|es|ed|ing)?\\b").containsMatchIn(this) }
+
+    private fun String.startsWithAny(vararg words: String): Boolean =
+        words.any { Regex("^" + Regex.escape(it) + "\\b").containsMatchIn(this) }
 }

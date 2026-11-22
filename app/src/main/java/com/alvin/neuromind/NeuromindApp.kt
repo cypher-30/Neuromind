@@ -265,6 +265,7 @@ fun NeuromindApp(
                             onNavigateToTask = { taskId ->
                                 navController.navigate("${Screen.TaskDetails.route}/$taskId")
                             },
+                            onNavigateToFocus = { taskId -> navController.navigate(Screen.FocusMode.route + "/$taskId") },
                             isDarkTheme = useDarkTheme,
                             onToggleTheme = {
                                 settingsViewModel.updateTheme(

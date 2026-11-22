@@ -222,4 +222,25 @@ class NeuromindAssistantTest {
         assertTrue("Should celebrate", response.message.contains("caught up", ignoreCase = true)
                 || response.message.contains("free", ignoreCase = true))
     }
+
+    @Test
+    fun `words inside other words don't trigger intents`() {
+        // "which"/"this" contain "hi"; "support" contains "sup".
+        assertEquals(AssistantIntent.SCHEDULE_QUERY, NeuromindAssistant.classify("which class do I have"))
+        assertEquals(AssistantIntent.HELP, NeuromindAssistant.classify("I need support, help"))
+        assertEquals(AssistantIntent.GREETING, NeuromindAssistant.classify("hi"))
+    }
+
+    @Test
+    fun `questions about finished work aren't completion commands`() {
+        assertEquals(AssistantIntent.STATS_QUERY, NeuromindAssistant.classify("how am I doing, what have I done"))
+        assertEquals(AssistantIntent.COMPLETE_TASK, NeuromindAssistant.classify("mark essay done"))
+    }
+
+    @Test
+    fun `tomorrow's schedule is about tomorrow`() {
+        val response = NeuromindAssistant.respond(AssistantIntent.SCHEDULE_QUERY, emptyList(), emptyList(),
+            com.alvin.neuromind.data.preferences.CognitiveProfile(), input = "what's on tomorrow?")
+        assertEquals(true, response.message.contains("tomorrow"))
+    }
 }
