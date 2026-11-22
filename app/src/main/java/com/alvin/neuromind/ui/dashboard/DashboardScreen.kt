@@ -629,7 +629,12 @@ fun AiPlanItem(slot: TimeSlot, task: Task) {
             VerticalDivider(modifier = Modifier.height(30.dp).padding(horizontal = 8.dp))
             Column {
                 Text(task.title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                Text("Estimated: ${task.durationMinutes} mins", style = MaterialTheme.typography.bodySmall)
+                val planned = java.time.Duration.between(slot.start, slot.end).toMinutes().toInt()
+                Text(
+                    if (planned < task.durationMinutes) "Today's share: $planned of ${task.durationMinutes} min"
+                    else "Estimated: ${task.durationMinutes} min",
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
         }
     }

@@ -82,8 +82,9 @@ class DashboardViewModel(
         repository.allTasks,
         repository.allTimetableEntries,
         repository.allFeedbackLogs,
+        repository.allFocusSessions,
         settings
-    ) { tasks, timetable, feedbackLogs, (profile, rebalanceDismissed, clockNow) ->
+    ) { tasks, timetable, feedbackLogs, focusSessions, (profile, rebalanceDismissed, clockNow) ->
 
         val now = System.currentTimeMillis()
         val today = clockNow.toLocalDate()
@@ -101,7 +102,8 @@ class DashboardViewModel(
             .sortedBy { it.startTime }
             .take(3)
 
-        val plan = scheduler.generateSchedule(tasks, timetable, date = today, profile = profile, now = clockNow)
+        val focused = focusSessions.filter { it.taskId != null }.groupBy { it.taskId!! }.mapValues { (_, s) -> s.sumOf { it.durationMinutes } }
+        val plan = scheduler.generateSchedule(tasks, timetable, date = today, profile = profile, now = clockNow, focusedMinutes = focused)
         val burnout = BurnoutAnalyzer.analyze(feedbackLogs)
 
         val overdueTasks = TaskPicker.rebalanceable(tasks)

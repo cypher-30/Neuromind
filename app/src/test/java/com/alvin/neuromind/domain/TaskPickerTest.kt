@@ -100,4 +100,38 @@ class TaskPickerTest {
         val plan = Scheduler().generateSchedule(all, emptyList(), date = sunday, profile = CognitiveProfile(), now = sunday.atTime(23, 50))
         assertTrue(plan.isEmpty())
     }
+
+    @Test
+    fun `priorities only look a few days ahead`() {
+        val highFarAway = Task(id = 9, title = "Final project", priority = Priority.HIGH,
+            dueDate = millis(sunday.plusDays(20).atTime(9, 0)))
+        val lowDueSoon = Task(id = 10, title = "Reading", priority = Priority.LOW,
+            dueDate = millis(sunday.plusDays(2).atTime(9, 0)))
+        val highNoDate = Task(id = 11, title = "Someday", priority = Priority.HIGH)
+        val ids = TaskPicker.priorities(listOf(highFarAway, lowDueSoon, highNoDate), sunday, millis(sundayMorning)).map { it.id }
+        assertEquals(listOf(10), ids)
+    }
+
+    @Test
+    fun `big work is spread over the days before its deadline`() {
+        // 4 h due Wednesday, planned on Sunday: Sun..Wed = 4 days -> 60 min today.
+        val big = Task(id = 12, title = "Notebook", durationMinutes = 240,
+            dueDate = millis(LocalDate.of(2026, 11, 25).atTime(23, 55)))
+        assertEquals(60, TaskPicker.todaysShare(big, sunday))
+        // 2 h already done in Focus: 120 left over 4 days -> 30.
+        assertEquals(30, TaskPicker.todaysShare(big, sunday, focusedMinutes = 120))
+        // Due today or overdue: everything that's left.
+        assertEquals(240, TaskPicker.todaysShare(big, LocalDate.of(2026, 11, 25)))
+        // Small tasks stay whole.
+        assertEquals(45, TaskPicker.todaysShare(big.copy(durationMinutes = 45), sunday))
+    }
+
+    @Test
+    fun `plan gives a big task only today's share`() {
+        val big = Task(id = 12, title = "Notebook", durationMinutes = 240, priority = Priority.HIGH,
+            dueDate = millis(LocalDate.of(2026, 11, 25).atTime(23, 55)))
+        val plan = Scheduler().generateSchedule(listOf(big), emptyList(), date = sunday, profile = CognitiveProfile(), now = sundayMorning)
+        val slot = plan.keys.single()
+        assertEquals(60L, java.time.Duration.between(slot.start, slot.end).toMinutes())
+    }
 }

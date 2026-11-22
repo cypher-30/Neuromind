@@ -28,7 +28,9 @@ class Scheduler {
         timetable: List<TimetableEntry>,
         date: LocalDate = LocalDate.now(),
         profile: CognitiveProfile = CognitiveProfile(),
-        now: LocalDateTime? = null
+        now: LocalDateTime? = null,
+        /** Minutes already spent in Focus per task id, so only what's left is planned. */
+        focusedMinutes: Map<Int, Int> = emptyMap()
     ): Map<TimeSlot, Task> {
         val schedule = mutableMapOf<TimeSlot, Task>()
 
@@ -48,7 +50,8 @@ class Scheduler {
         for (task in todoTasks) {
             if (currentTime.isAfter(dayEnd)) break
 
-            val taskDuration = task.durationMinutes.toLong()
+            // Big tasks get today's share only (see TaskPicker.todaysShare).
+            val taskDuration = TaskPicker.todaysShare(task, date, focusedMinutes[task.id] ?: 0).toLong()
             val endTime = currentTime.plusMinutes(taskDuration)
 
             val conflict = timetable.find { entry -> entry.blocks(date, currentTime, endTime) }

@@ -58,22 +58,26 @@ object TaskPicker {
         workable(all).sortedWith(byUrgency(nowMillis))
 
     /**
-     * Today's priorities: overdue tasks, today's on-the-day errands, and
-     * HIGH-priority work. On-the-day tasks for later days stay hidden.
+     * Today's priorities: what needs attention in the next few days. Overdue
+     * tasks, today's on-the-day errands, and work due within [soonDays] days
+     * (any priority). Later deadlines and undated tasks stay in the task list.
      */
     fun priorities(
         all: List<Task>,
         today: LocalDate,
         nowMillis: Long,
         limit: Int = 5,
-        zone: ZoneId = ZoneId.systemDefault()
+        zone: ZoneId = ZoneId.systemDefault(),
+        soonDays: Long = 3
     ): List<Task> =
         all.asSequence()
             .filter { !it.isCompleted && isRelevant(it, today, zone) }
             .filter { task ->
                 val overdue = task.dueDate != null && task.dueDate < nowMillis
-                val errandToday = task.onDueDay && dueDay(task, zone) == today
-                overdue || errandToday || task.priority == com.alvin.neuromind.data.Priority.HIGH
+                val day = dueDay(task, zone)
+                val errandToday = task.onDueDay && day == today
+                val dueSoon = !task.onDueDay && day != null && !day.isAfter(today.plusDays(soonDays))
+                overdue || errandToday || dueSoon
             }
             .sortedWith(
                 compareByDescending<Task> { it.dueDate != null && it.dueDate < nowMillis }
@@ -83,6 +87,33 @@ object TaskPicker {
             )
             .take(limit)
             .toList()
+
+    /**
+     * How many minutes of [task] to plan on [date], so big work is spread over
+     * the days before its deadline instead of landing in one block (or not at
+     * all). What's left = estimate minus minutes already spent in Focus.
+     *  - 90 min or less left, due today, or overdue: all of it.
+     *  - Otherwise: an even share per day up to the due day (no due date: over
+     *    3 days), rounded up to 15 min, at least 30.
+     */
+    fun todaysShare(
+        task: Task,
+        date: LocalDate,
+        focusedMinutes: Int = 0,
+        zone: ZoneId = ZoneId.systemDefault()
+    ): Int {
+        val left = (task.durationMinutes - focusedMinutes).let { if (it <= 0) 30 else it }
+        if (left <= 90) return left
+        val day = dueDay(task, zone)
+        val days = when {
+            day == null -> 3L
+            !day.isAfter(date) -> return left
+            else -> java.time.temporal.ChronoUnit.DAYS.between(date, day) + 1
+        }
+        val share = ((left + days - 1) / days).toInt()
+        val rounded = ((share + 14) / 15) * 15
+        return rounded.coerceIn(30, left)
+    }
 
     /** Overdue work the rebalancer may move; on-the-day errands are never auto-rescheduled. */
     fun rebalanceable(all: List<Task>): List<Task> =
