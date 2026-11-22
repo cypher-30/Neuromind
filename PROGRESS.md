@@ -28,6 +28,12 @@
 - [x] Light widgets use a neutral palette; empty widgets show an icon + hint
 - [x] Loading, before-first-draw and error states: dark "Neuromind is getting
       ready" card (overrides Glance's spinner and "Can't show content")
+- [x] Widget bold text: OxygenOS ignores Glance `FontWeight`; bold uses the
+      `sans-serif-black` family (checked on the Exam Countdown widget)
+- [x] **Details screens** (`task_details/{id}`, `entry_details/{id}`): tapping a
+      task, class or event (list, timetable, Home, widgets, reminders) shows its
+      details with Edit / Delete (+ Mark done / Focus for tasks)
+- [ ] Device check of the details screens in light + dark
 - [x] **Reboot re-arming passed** (2026-11-22, 9 min after a real reboot): all
       10 event reminders + midnight refresh were back in `dumpsys alarm`
 
