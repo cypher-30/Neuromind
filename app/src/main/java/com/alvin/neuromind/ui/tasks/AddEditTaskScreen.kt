@@ -1,5 +1,8 @@
 package com.alvin.neuromind.ui.tasks
 
+import com.alvin.neuromind.ui.components.OrganicToggle
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.selection.toggleable
 import com.alvin.neuromind.ui.components.OrganicConfirmDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -223,6 +226,38 @@ fun AddEditTaskScreen(
                     Spacer(modifier = Modifier.weight(1f))
                 }
                 PillButton(text = "Find a Time", onClick = { viewModel.findAvailableTime() }, ghost = true)
+            }
+        }
+
+        // "Do it on the day": errands/appointments rather than work done ahead.
+        item {
+            val hasDate = uiState.dueDate != null
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .toggleable(
+                        value = uiState.onDueDay && hasDate,
+                        enabled = hasDate,
+                        role = Role.Switch,
+                        onValueChange = viewModel::onOnDueDayChange
+                    )
+            ) {
+                androidx.compose.foundation.layout.Column(Modifier.weight(1f)) {
+                    Text(
+                        "Do it on the day",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = if (hasDate) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        if (hasDate) "An errand or appointment for that day, not work to start early. It stays out of your plan and suggestions until then."
+                        else "Set a due date first.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                OrganicToggle(checked = uiState.onDueDay && hasDate, onCheckedChange = null)
             }
         }
 

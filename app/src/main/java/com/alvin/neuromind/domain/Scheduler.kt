@@ -4,6 +4,7 @@ import com.alvin.neuromind.data.Task
 import com.alvin.neuromind.data.TimetableEntry
 import com.alvin.neuromind.data.preferences.CognitiveProfile
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 
 data class TimeSlot(val start: LocalTime, val end: LocalTime)
@@ -12,25 +13,36 @@ class Scheduler {
     /**
      * Generates a daily plan by finding timetable gaps and slotting tasks into them.
      *
-     * Ordering: HIGH-priority tasks land first; within the same priority, HARD tasks
-     * are placed before MEDIUM and EASY so the most demanding work happens during
-     * the user's cognitive peak window.
+     * Only [TaskPicker.workable] tasks are planned: not done, not waiting on an
+     * unfinished prerequisite, and not "on the day" errands (those happen at
+     * their own time, not in a work slot). They're taken most urgent first
+     * ([TaskPicker.byUrgency]: overdue, due within 3 days, then priority and
+     * difficulty), so the greedy fill from [profile.peakStart] puts the most
+     * pressing, hardest work in the sharpest focus window.
      *
-     * The greedy fill starts at [profile.peakStart] so the top-priority, hardest
-     * tasks naturally fall inside the sharpest focus window.
+     * When [now] is on [date], planning starts no earlier than now (rounded up
+     * to the next quarter hour) instead of offering slots that already passed.
      */
     fun generateSchedule(
         tasks: List<Task>,
         timetable: List<TimetableEntry>,
         date: LocalDate = LocalDate.now(),
-        profile: CognitiveProfile = CognitiveProfile()
+        profile: CognitiveProfile = CognitiveProfile(),
+        now: LocalDateTime? = null
     ): Map<TimeSlot, Task> {
         val schedule = mutableMapOf<TimeSlot, Task>()
 
-        val todoTasks = tasks.filter { !it.isCompleted }
-            .sortedWith(compareByDescending<Task> { it.priority }.thenByDescending { it.difficulty })
+        val nowMillis = (now ?: LocalDateTime.now()).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val todoTasks = TaskPicker.workQueue(tasks, nowMillis)
 
         var currentTime = LocalTime.of(profile.peakStart, 0)
+        if (now != null && now.toLocalDate() == date) {
+            val m = now.toLocalTime().withSecond(0).withNano(0)
+            val roundedUp = m.plusMinutes(((15 - m.minute % 15) % 15).toLong())
+            // Past midnight-wrap (after 23:45) or past the day's end: nothing left to plan.
+            if (roundedUp.isBefore(m) || roundedUp.isAfter(LocalTime.of(22, 0))) return schedule
+            if (roundedUp.isAfter(currentTime)) currentTime = roundedUp
+        }
         val dayEnd = LocalTime.of(22, 0)
 
         for (task in todoTasks) {

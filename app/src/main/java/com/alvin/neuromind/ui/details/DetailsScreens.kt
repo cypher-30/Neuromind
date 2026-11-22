@@ -236,8 +236,11 @@ fun TaskDetailsScreen(
     ) {
         item {
             HeroCard(kicker = status, kickerColor = statusColor, title = task.title) {
-                task.dueDate?.let { InfoRow(Icons.Default.Event, "Due", formatMillis(it)) }
+                task.dueDate?.let { InfoRow(Icons.Default.Event, if (task.onDueDay) "On" else "Due", formatMillis(it)) }
                     ?: InfoRow(Icons.Default.Event, "Due", "No due date")
+                if (task.onDueDay) {
+                    InfoRow(Icons.Default.Repeat, "Kind", "Do it on the day: kept out of your plan and suggestions until then")
+                }
                 InfoRow(Icons.Default.Flag, "Priority", task.priority.name.titleCase())
                 InfoRow(Icons.Default.Speed, "Difficulty", task.difficulty.name.titleCase())
                 InfoRow(Icons.Default.Timer, "Takes about", durationText(task.durationMinutes))
@@ -268,7 +271,8 @@ fun TaskDetailsScreen(
                     onClick = { viewModel.setCompleted(!task.isCompleted) },
                     modifier = Modifier.weight(1f)
                 )
-                if (!task.isCompleted) {
+                // Errands aren't Focus work.
+                if (!task.isCompleted && !task.onDueDay) {
                     PillButton(text = "Focus on it", ghost = true, onClick = { onFocus(task) }, modifier = Modifier.weight(1f))
                 }
             }

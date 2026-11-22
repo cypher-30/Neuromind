@@ -29,6 +29,7 @@ data class BackupData(
         // 2: timetable entries gained isAllDay + reminderMode (dated events).
         // 3: weekly classes gained lastDate (last day of classes).
         // 4: tasks gained completedAt.
-        const val CURRENT_SCHEMA_VERSION = 4
+        // 5: tasks gained onDueDay ("do it on the day").
+        const val CURRENT_SCHEMA_VERSION = 5
     }
 }

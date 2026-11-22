@@ -401,7 +401,7 @@ fun TaskCard(
                 Spacer(modifier = Modifier.height(4.dp))
                 TaskMetaRow(task = task, priorityColor = priorityColor, isBlocked = isBlocked)
             }
-            if (!task.isCompleted && !isBlocked) {
+            if (!task.isCompleted && !isBlocked && !task.onDueDay) {
                 IconButton(onClick = onFocusClick) {
                     Icon(
                         Icons.Default.Timer,

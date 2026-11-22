@@ -46,6 +46,7 @@ import com.alvin.neuromind.data.NeuromindApplication
 import com.alvin.neuromind.data.Task
 import com.alvin.neuromind.domain.DailyProgressCalculator
 import com.alvin.neuromind.domain.Occurrence
+import com.alvin.neuromind.domain.TaskPicker
 import com.alvin.neuromind.domain.WidgetInsights
 import com.alvin.neuromind.navigation.AppRouteIntents
 import kotlinx.coroutines.flow.first
@@ -232,7 +233,8 @@ class TodayWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) = safely("Today") {
         val repo = (context.applicationContext as NeuromindApplication).repository
         val now = LocalDateTime.now()
-        val priorities = repo.getWidgetTasks(nowMillis = System.currentTimeMillis(), limit = 5)
+        // Same rule as Home's priorities (errands only on their day).
+        val priorities = TaskPicker.priorities(repo.allTasks.first(), now.toLocalDate(), System.currentTimeMillis())
         val next = WidgetInsights.nextUp(repo.allTimetableEntries.first(), now)
         provideContent {
             val today = now.toLocalDate()

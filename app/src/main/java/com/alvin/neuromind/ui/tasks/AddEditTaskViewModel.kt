@@ -24,6 +24,8 @@ data class AddEditTaskUiState(
     val prerequisiteTaskId: Int? = null,
     val subject: String = "",
     val category: TaskCategory = TaskCategory.ACADEMIC,
+    /** "Do it on the day" (errand/appointment) instead of work done ahead. Needs a due date. */
+    val onDueDay: Boolean = false,
     val isEditing: Boolean = false,
     val availableTasks: List<Task> = emptyList(),
     val subTaskProposal: List<Task> = emptyList(),
@@ -99,6 +101,7 @@ class AddEditTaskViewModel(private val repository: TaskRepository) : ViewModel()
     fun onPrerequisiteChange(value: Int?) = edit { it.copy(prerequisiteTaskId = value) }
     fun onSubjectChange(value: String) = edit { it.copy(subject = value) }
     fun onCategoryChange(value: TaskCategory) = edit { it.copy(category = value) }
+    fun onOnDueDayChange(value: Boolean) = edit { it.copy(onDueDay = value) }
 
     /** Throws away the unsaved draft and resets the form to the saved task (or blank). */
     fun discardDraft() {
@@ -123,7 +126,9 @@ class AddEditTaskViewModel(private val repository: TaskRepository) : ViewModel()
                     durationMinutes = state.durationMinutes,
                     prerequisiteTaskId = state.prerequisiteTaskId,
                     subject = state.subject.trim().takeIf { it.isNotBlank() },
-                    category = state.category
+                    category = state.category,
+                    // Without a due date there's no "day" to do it on.
+                    onDueDay = state.onDueDay && state.dueDate != null
                 )
             }
             // Editing keeps isCompleted/createdAt from the stored task.
@@ -201,7 +206,8 @@ private fun Task.toDraft() = TaskDraft(
     durationMinutes = durationMinutes,
     prerequisiteTaskId = prerequisiteTaskId,
     subject = subject ?: "",
-    category = category.name
+    category = category.name,
+    onDueDay = onDueDay
 )
 
 private fun AddEditTaskUiState.toDraft() = TaskDraft(
@@ -213,7 +219,8 @@ private fun AddEditTaskUiState.toDraft() = TaskDraft(
     durationMinutes = durationMinutes,
     prerequisiteTaskId = prerequisiteTaskId,
     subject = subject,
-    category = category.name
+    category = category.name,
+    onDueDay = onDueDay
 )
 
 private fun AddEditTaskUiState.applyDraft(d: TaskDraft) = copy(
@@ -225,5 +232,6 @@ private fun AddEditTaskUiState.applyDraft(d: TaskDraft) = copy(
     durationMinutes = d.durationMinutes,
     prerequisiteTaskId = d.prerequisiteTaskId,
     subject = d.subject,
-    category = runCatching { TaskCategory.valueOf(d.category) }.getOrDefault(TaskCategory.ACADEMIC)
+    category = runCatching { TaskCategory.valueOf(d.category) }.getOrDefault(TaskCategory.ACADEMIC),
+    onDueDay = d.onDueDay
 )

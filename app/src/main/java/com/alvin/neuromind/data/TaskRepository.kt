@@ -116,9 +116,6 @@ class TaskRepository(
     suspend fun insertFocusSession(session: FocusSession) = focusSessionDao.insertSession(session)
     suspend fun deleteAllFocusSessions() = focusSessionDao.deleteAllSessions()
 
-    suspend fun getWidgetTasks(nowMillis: Long, limit: Int = 3): List<Task> =
-        taskDao.getWidgetTasks(nowMillis = nowMillis, limit = limit)
-
     suspend fun getWidgetNextEntry(
         dayOfWeek: DayOfWeek,
         date: LocalDate,

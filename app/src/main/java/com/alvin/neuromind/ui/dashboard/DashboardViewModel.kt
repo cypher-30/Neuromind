@@ -18,6 +18,7 @@ import com.alvin.neuromind.domain.RebalanceProposal
 import com.alvin.neuromind.domain.Scheduler
 import com.alvin.neuromind.domain.Suggestion
 import com.alvin.neuromind.domain.SuggestionEngine
+import com.alvin.neuromind.domain.TaskPicker
 import com.alvin.neuromind.domain.TaskRebalancer
 import com.alvin.neuromind.domain.TimeSlot
 import kotlinx.coroutines.delay
@@ -88,10 +89,8 @@ class DashboardViewModel(
         val today = clockNow.toLocalDate()
         val nowTime = clockNow.toLocalTime()
 
-        val priorityList = tasks
-            .filter { task -> !task.isCompleted && (task.priority == Priority.HIGH || (task.dueDate != null && task.dueDate < now)) }
-            .sortedWith(compareByDescending<Task> { task -> task.dueDate != null && task.dueDate < now }.thenByDescending { it.priority })
-            .take(5)
+        // Overdue, today's on-the-day errands, and HIGH work (errands for later days stay hidden).
+        val priorityList = TaskPicker.priorities(tasks, today, now)
 
         val todaysEntries = timetable.filter { it.occursOn(today) }
         val happeningNow = todaysEntries
@@ -102,10 +101,10 @@ class DashboardViewModel(
             .sortedBy { it.startTime }
             .take(3)
 
-        val plan = scheduler.generateSchedule(tasks, timetable, date = today, profile = profile)
+        val plan = scheduler.generateSchedule(tasks, timetable, date = today, profile = profile, now = clockNow)
         val burnout = BurnoutAnalyzer.analyze(feedbackLogs)
 
-        val overdueTasks = tasks.filter { it.isOverdue && !it.isCompleted }
+        val overdueTasks = TaskPicker.rebalanceable(tasks)
         val rebalanceProposals = if (overdueTasks.size >= 3 && !rebalanceDismissed) {
             TaskRebalancer.rebalance(overdueTasks, timetable, profile = profile)
         } else {
@@ -114,7 +113,7 @@ class DashboardViewModel(
 
         // Suggestion is lower priority than burnout and rebalance — only compute when neither is active
         val suggestion = if (burnout == null && rebalanceProposals.isEmpty()) {
-            SuggestionEngine.suggest(tasks, timetable, profile, feedbackLogs)
+            SuggestionEngine.suggest(tasks, timetable, profile, feedbackLogs, now = clockNow)
         } else {
             null
         }

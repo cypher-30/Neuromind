@@ -69,7 +69,8 @@ data class TaskDraft(
     val durationMinutes: Int = 60,
     val prerequisiteTaskId: Int? = null,
     val subject: String = "",
-    val category: String = TaskCategory.ACADEMIC.name
+    val category: String = TaskCategory.ACADEMIC.name,
+    val onDueDay: Boolean = false
 )
 
 @Serializable

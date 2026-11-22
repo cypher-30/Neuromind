@@ -22,7 +22,8 @@ object SuggestionEngine {
 
     /**
      * Returns a single, timely suggestion based on the current time, cognitive profile,
-     * and task list. Returns null when nothing relevant applies.
+     * and task list. Returns null when nothing relevant applies. Candidates come from
+     * [TaskPicker.workQueue] (work tasks, most urgent first).
      *
      * Priority order (first match wins):
      * 1. PEAK_HOUR_NUDGE — in peak window + incomplete HIGH/HARD task
@@ -37,7 +38,10 @@ object SuggestionEngine {
         feedbackLogs: List<FeedbackLog> = emptyList(),
         now: LocalDateTime = LocalDateTime.now()
     ): Suggestion? {
-        val incompleteTasks = tasks.filter { !it.isCompleted }
+        // Work only (no on-the-day errands, nothing waiting on a prerequisite),
+        // most urgent first, so every rule below picks the most pressing match.
+        val nowMillis = now.atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val incompleteTasks = TaskPicker.workQueue(tasks, nowMillis)
         if (incompleteTasks.isEmpty()) return null
 
         val hour = now.hour
@@ -95,7 +99,7 @@ object SuggestionEngine {
 
         // 3. ENERGY_MATCH (explicit LOW/MEDIUM/HIGH mapping from recent logs)
         val energyState = resolveEnergyState(feedbackLogs)
-        val nonOverdueTasks = incompleteTasks.filterNot { it.isOverdue }
+        val nonOverdueTasks = incompleteTasks.filterNot { it.dueDate != null && it.dueDate < nowMillis }
         val energyMatchedTask = pickTaskForEnergyState(nonOverdueTasks, energyState)
         if (energyMatchedTask != null) {
             val message = when (energyState) {
@@ -112,9 +116,9 @@ object SuggestionEngine {
         }
 
         // 4. OVERDUE_ALERT (1–2 overdue; ≥ 3 is handled by the rebalance card)
-        val overdueCount = incompleteTasks.count { it.isOverdue }
+        val overdueCount = incompleteTasks.count { it.dueDate != null && it.dueDate < nowMillis }
         if (overdueCount in 1..2) {
-            val oldest = incompleteTasks.filter { it.isOverdue }.minByOrNull { it.dueDate ?: Long.MAX_VALUE }
+            val oldest = incompleteTasks.filter { it.dueDate != null && it.dueDate < nowMillis }.minByOrNull { it.dueDate ?: Long.MAX_VALUE }
             return Suggestion(
                 type = SuggestionType.OVERDUE_ALERT,
                 message = "You have $overdueCount overdue task${if (overdueCount > 1) "s" else ""} - tackle one now?",

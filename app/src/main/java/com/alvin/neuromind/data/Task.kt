@@ -1,5 +1,6 @@
 package com.alvin.neuromind.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import kotlinx.serialization.Serializable
@@ -26,7 +27,13 @@ data class Task(
     val category: TaskCategory = TaskCategory.ACADEMIC, // added in DB v10
     // When the task was ticked off (null while open, and for tasks finished
     // before DB v14). Set/cleared by TaskRepository.updateTask/insertTask.
-    val completedAt: Long? = null
+    val completedAt: Long? = null,
+    // "Do it on the day": an errand/appointment that happens on its due date
+    // (go to Parklands, sign attendance) rather than work done in advance.
+    // Hidden from plans, priorities and suggestions until that day; never
+    // offered as Focus work. Added in DB v15.
+    @ColumnInfo(defaultValue = "0")
+    val onDueDay: Boolean = false
 ) {
     val isOverdue: Boolean
         get() = !isCompleted && dueDate != null && dueDate < System.currentTimeMillis()
