@@ -27,6 +27,11 @@ All offline, rule-based; build- and unit-test-verified. **Not yet checked on the
 - **Spacing**: Scaffold applied the status-bar inset twice (screens sat low); list bottom padding
   was 100dp on top of the nav capsule's own space (16dp now; 88dp where the Tasks "+" button floats).
   Ask's composer sits 2dp above the nav when the keyboard is closed (12dp above the keyboard as before).
+  The real bottom gap: the nav capsule padded itself with `displayCutout`, whose **top** inset (punch-hole
+  camera) equals the status bar, so a ~36dp band sat above the bar on every tab. Now sides + bottom only.
+  Device-verified on the OnePlus in light and dark (Home, Ask with and without keyboard, Tasks).
+- Revision plan follow-ups: a day with long commitments loses study time beyond 2 h of them (WBL Decoded
+  9–17 on Thu 26 leaves 1 h), and free non-exam days are topped up to ~4 h. WBL Decoded added to the phone.
 
 ### Future (noted, not started)
 - **On-device LLM** (MediaPipe LLM Inference + a small Gemma model) for free-form Ask, offline.
