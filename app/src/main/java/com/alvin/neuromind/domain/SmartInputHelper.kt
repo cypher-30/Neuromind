@@ -62,16 +62,38 @@ object SmartInputHelper {
             title = title.replace(match.value, " ").trim()
         }
 
-        // Clean up common prefixes
-        title = title.replace(Regex("(?i)^(remind me to |add task |task )+"), "").trim()
+        // Clean up common prefixes ("add task:", "I need to", …) and dangling
+        // words left where a date was cut out ("go to Upperhill on").
+        title = title
+            .replace(Regex("(?i)^(remind me to |add task:? |add a task:? |new task:? |task:? |i need to |i have to |i've got to |i gotta |i must )+"), "")
+            .replace(Regex("(?i)\\s+(on|by|this|at|for)\\s*$"), "")
+            .replace(Regex("\\s+"), " ")
+            .trim()
 
         val finalDueDate = dueDate?.atZone(ZoneId.systemDefault())?.toInstant()?.toEpochMilli()
+        val finalTitle = if (title.isBlank()) "New Task" else title
 
         return ParsedTask(
-            title = if (title.isBlank()) "New Task" else title.replace(Regex("\\s+"), " "),
-            dueDate = finalDueDate
+            title = finalTitle,
+            dueDate = finalDueDate,
+            // Only meaningful with a day to do it on.
+            onDueDay = finalDueDate != null && looksLikeErrand(finalTitle)
         )
     }
+
+    // Errands and appointments: things you go and do on the day rather than
+    // work you can start early. Verbs must start the title; places and
+    // appointment words can be anywhere.
+    private val errandVerbs = Regex(
+        "(?i)^(go( to)?|visit|pick up|collect|drop off|sign|meet|see|attend|buy|pay|book|call|return|renew|get my|fetch)\\b"
+    )
+    private val errandWords = Regex(
+        "(?i)\\b(appointment|errand|doctor|dentist|hospital|clinic|medical|bank|salon|barber|interview|meeting|pharmacy|embassy|office hours)\\b"
+    )
+
+    fun looksLikeErrand(title: String): Boolean =
+        errandVerbs.containsMatchIn(title.trim()) || errandWords.containsMatchIn(title)
 }
 
-data class ParsedTask(val title: String, val dueDate: Long?)
+/** [onDueDay]: the text reads like an errand/appointment for that day (see [SmartInputHelper.looksLikeErrand]). */
+data class ParsedTask(val title: String, val dueDate: Long?, val onDueDay: Boolean = false)

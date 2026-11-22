@@ -59,7 +59,8 @@ class TaskViewModel(private val repository: TaskRepository) : ViewModel() {
         val parsed = SmartInputHelper.parseInput(input)
         val task = Task(
             title = parsed.title,
-            dueDate = parsed.dueDate
+            dueDate = parsed.dueDate,
+            onDueDay = parsed.onDueDay
         )
         repository.insertTask(task)
     }

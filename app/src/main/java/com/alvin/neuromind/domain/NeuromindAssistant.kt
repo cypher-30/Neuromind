@@ -47,6 +47,10 @@ object NeuromindAssistant {
             // Action intents first (most specific)
             lower.containsAny("add task", "create task", "new task", "remind me to", "add a task") ->
                 AssistantIntent.CREATE_TASK
+            // "I need to go to Parklands on Monday": a to-do when it names a day.
+            lower.containsAny("i need to", "i have to", "i've got to", "i gotta", "i must") &&
+                lower.containsAny("today", "tomorrow", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday") ->
+                AssistantIntent.CREATE_TASK
             lower.containsAny("mark", "done", "finished", "complete", "i did", "i finished", "completed") &&
                 !lower.containsAny("how many", "overdue", "pending", "all complete") &&
                 // Questions ("what have I done?", "did I finish…?") aren't commands.

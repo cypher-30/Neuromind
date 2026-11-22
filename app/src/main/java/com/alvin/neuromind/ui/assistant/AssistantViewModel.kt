@@ -82,7 +82,7 @@ class AssistantViewModel(
 
     private fun handleCreateTask(text: String) {
         val parsed  = SmartInputHelper.parseInput(text)
-        val newTask = Task(title = parsed.title, dueDate = parsed.dueDate, priority = Priority.MEDIUM)
+        val newTask = Task(title = parsed.title, dueDate = parsed.dueDate, priority = Priority.MEDIUM, onDueDay = parsed.onDueDay)
 
         viewModelScope.launch {
             repository.insertTask(newTask)
@@ -94,7 +94,8 @@ class AssistantViewModel(
 
             val botMsg = ChatMessage(
                 id     = nextId++,
-                text   = "Added \"${parsed.title}\"$duePart to your tasks! ✅",
+                text   = "Added \"${parsed.title}\"$duePart to your tasks! ✅" +
+                    (if (parsed.onDueDay) "\nIt's an errand for that day, so it stays out of your plan until then." else ""),
                 isUser = false
             )
             _uiState.update { it.copy(messages = it.messages + botMsg, isThinking = false) }
